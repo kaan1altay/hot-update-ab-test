@@ -3,8 +3,8 @@
 Engineering log for `hot-update-ab-test`. Updated at the end of every slice, so the numbers here are
 checkable rather than claimed.
 
-**Slice 2 of 6 complete.** Configuration pipeline, strict validation, the fallback ladder, and the kill
-switch.
+**Slice 3 of 6 complete.** Exposure at view time, conversion attribution, the sample-ratio guardrail, and a
+randomised soak over the whole framework.
 
 ---
 
@@ -32,28 +32,20 @@ switch.
 ### Why the core is compiled twice
 
 Everything under `Runtime/Core/` is written without touching `UnityEngine`. `dotnet/` links those files
-into a plain NUnit project — links, not copies, so there is exactly one source of truth — and GitHub
-Actions runs them on every push. **Unity is never run in CI**: it needs a licence secret, and the vendored
-xLua plugin is desktop x64 only, so a badge would eventually go red for reasons unrelated to the code.
-
-Newtonsoft is referenced from the Core assembly through `precompiledReferences`, which works alongside
-`noEngineReferences: true` — verified, since that combination was the main risk in adopting it.
+into a plain NUnit project — links, not copies — and GitHub Actions runs them on every push. **Unity is
+never run in CI**: it needs a licence secret, and the vendored xLua plugin is desktop x64 only, so a badge
+would eventually go red for reasons unrelated to the code.
 
 **What the second compilation does and does not guarantee.** It pins the *language level* (`LangVersion
-9.0`, so CI rejects C# 10+ before the Editor does) and the *core library surface*. It does **not**
-guarantee assertion-API parity: Unity bundles NUnit 3.5.0 while the lowest version workable on `net9.0`
-with a modern test adapter is 3.14.0. That gap is real and this slice hit it twice — `Is.AnyOf` does not
-exist in 3.5, and 3.5's `Has.Count` cannot resolve the property through `IReadOnlyList<T>`. Both passed
-under `dotnet test` and failed the Unity run. The rule that follows: **the Unity batchmode run is the
-authority, and nothing is pushed until both suites are green.** Core tests should stick to NUnit
-3.5-era assertions.
+9.0`) and the *core library surface*. It does **not** guarantee assertion-API parity: Unity bundles NUnit
+3.5.0 while the lowest version workable on `net9.0` with a modern adapter is 3.14.0. Slice 2 hit that gap
+twice. **The Unity batchmode run is the authority, and nothing is pushed until both suites are green.**
 
 ---
 
 ## Running the tests
 
-**The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock,
-and the run fails with a lock error rather than waiting.
+**The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
 
 ```powershell
 # Engine-free core - fast, no Unity, also what CI runs.
@@ -76,80 +68,122 @@ Last run 2026-08-30, both suites green.
 
 | Suite | Tests | Result |
 | --- | --- | --- |
-| `dotnet test` (engine-free core) | 141 | 141 passed, ~1.0 s |
-| Unity EditMode batchmode | 146 | 146 passed |
+| `dotnet test` (engine-free core) | 195 | 195 passed, ~13 s |
+| Unity EditMode batchmode | 200 | 200 passed |
 
-The Unity run is a superset: the same 141 core tests plus 5 that need the engine.
+The Unity run is a superset: the same 195 core tests plus 5 that need the engine. The soak accounts for
+almost all of the 13 seconds; the rest of the suite is about one second.
 
 | Area | Tests | What is covered |
 | --- | --- | --- |
 | `Murmur3Tests` | 12 | SMHasher verification value, reference vectors, UTF-8 encoding, avalanche, every tail length, buffer-range guards |
-| `LayerAllocatorTests` | 11 | Mutual exclusion by bucket sweep, holdout traffic, stability, uniformity, cross-layer independence, the shared-salt negative control, status gating |
-| `VariantAssignerTests` | 12 | Determinism across rebuilt configs, exact bucket-space partition, weighted split, independence from layer position, boundary shift on weight change, arm order, zero weights, 64-bit overflow guard |
-| `ConfigReaderTests` | 22 | Absent-vs-zero weight, schema gate and its short-circuit, malformed/empty/wrong-root payloads, all findings collected, message wording, optional-field defaults, unknown fields ignored |
-| `ConfigValidatorTests` | 15 | Overlapping traffic, adjacent ranges, draft exemption, shared layer salts, unknown layer refs, duplicate ids, missing control, zero weights, allocation bounds |
-| `ConfigServiceTests` | 21 | The full ladder, cache preference, corrupt cache, every failure mode preserving what is in force, recovery after rejection, log-once behaviour, skip-when-unchanged, content drift, poll interval, kill-switch pin discard |
-| `ConfigServiceConcurrencyTests` | 3 | 4 threads × 20,000 resolves against 200 swaps with per-result coherence inspection; concurrent applies; a snapshot held across a swap |
-| `ExperimentResolverTests` | 22 | Resolution order, audience-after-allocation, pin precedence, sticky vs stateless, forced override and its limits, per-layer independence, explanations for every non-assignment |
-| `PinReconcilerTests` | 11 | All four invalidation reasons, per-user variant removal, the stickiness-flip decision and its round trip, idempotence |
-| `ShippedDefaultsTests` | 6 | The real file parses and validates, every experiment stopped, cold-start-offline end to end, startable by flipping status alone |
-| `LuaEnvironmentSmokeTests` | 5 | Native VM loads under batchmode, values cross both ways, `LuaFunction` handles, errors surface as `LuaException`, custom `require` loader is consulted |
+| `LayerAllocatorTests` | 11 | Mutual exclusion by bucket sweep, holdout traffic, uniformity, cross-layer independence, the shared-salt negative control, status gating |
+| `VariantAssignerTests` | 12 | Determinism, exact bucket-space partition, weighted split, independence from layer position, boundary shift, arm order, zero weights, 64-bit overflow guard |
+| `ConfigReaderTests` | 22 | Absent-vs-zero weight, schema gate and short-circuit, malformed input, all findings collected, message wording, unknown fields ignored |
+| `ConfigValidatorTests` | 15 | Overlapping traffic, adjacent ranges, draft exemption, shared layer salts, unknown refs, duplicates, missing control, allocation bounds |
+| `ConfigServiceTests` | 21 | The full ladder, every failure mode preserving what is in force, recovery after rejection, log-once, skip-when-unchanged, content drift, kill-switch pin discard |
+| `ConfigServiceConcurrencyTests` | 3 | 4 threads × 20,000 resolves against 200 swaps with per-result coherence inspection |
+| `ExperimentResolverTests` | 22 | Resolution order, audience-after-allocation, pin precedence, sticky vs stateless, forced override and its limits, explanations for every non-assignment |
+| `PinReconcilerTests` | 11 | All four invalidation reasons, per-user variant removal, the stickiness-flip round trip, idempotence |
+| `ShippedDefaultsTests` | 6 | The real file parses and validates, every experiment stopped, cold-start-offline end to end |
+| `ExposureTrackerTests` | 15 | Resolution logs nothing, dedup within a session, a new session logging again, per-user counting, session rollover, contamination flagging, forced and synthetic traits, the funnel denominator |
+| `ConversionTrackerTests` | 10 | Attribution from the record across a weight ramp and across the kill switch, multi-layer credit, unattributed visibility, trait inheritance, rate per exposed user |
+| `SrmCheckTests` | 13 | Healthy and skewed splits, sampling noise not alarming, both floors, zero-weight arms, single-arm and empty cases, the many-arm approximation |
+| `MetricsAggregatorTests` | 12 | Both breakage modes and the negative control, population filtering, orphaned arms, the printed table, aggregation cost |
+| `TelemetrySoakTests` | 2 | 20,000 randomised operations per seed, two seeds, invariants throughout |
+| `LuaEnvironmentSmokeTests` | 5 | Native VM under batchmode, values both ways, `LuaFunction` handles, `LuaException`, custom `require` loader |
 
 ### Tests that demonstrate the failure mode rather than the success path
 
-- **`Murmur3Tests.TheImplementationMatchesSmHashersVerificationValue`** — the reference self-test, asserted
-  at `0xB0F57EE3`. One number pins the whole implementation.
-- **`LayerAllocatorTests.ReusingOneSaltAcrossLayersWouldCorrelateThem`** — builds two layers sharing a salt
-  and asserts they are *perfectly* confounded, so the damage per-layer salting prevents is demonstrated.
-- **`ExperimentResolverTests.AnUnexposedUserIsRebucketedFreelyWhenTheWeightsChange`** — the flip side of
-  stickiness. Without it, "exposed users keep their arm" could be satisfied by pinning everybody, which
-  would make ramping impossible.
+- **`Murmur3Tests.TheImplementationMatchesSmHashersVerificationValue`** — the reference self-test at
+  `0xB0F57EE3`. One number pins the whole implementation.
+- **`LayerAllocatorTests.ReusingOneSaltAcrossLayersWouldCorrelateThem`** — two layers sharing a salt,
+  asserted *perfectly* confounded.
+- **`MetricsAggregatorTests.AnSrmCheckOverAssignmentsWouldHaveMissedIt`** — the new one, and the most
+  important in this slice. It runs the suppressed-exposure breakage, feeds the same run's *assignment*
+  counts to the same checker, and asserts they come back **healthy** while the exposure-based check alarms.
+  The reason SRM is measured over exposures is therefore demonstrated by the suite, not argued in a comment.
 - **`PinReconcilerTests.FlippingToStatelessAndBackRestoresTheOriginalAssignments`** — proves the policy
-  toggle is lossless, which is the whole reason a stickiness flip does not delete pins.
-- **`ConfigServiceConcurrencyTests.AReaderNeverObservesAHalfAppliedConfiguration`** — inspects every one of
-  80,000 concurrent resolves for a variant that does not belong to its experiment, or two experiments
-  claiming one bucket.
+  toggle is lossless.
+- **`SrmCheckTests.ThreeAgainstOneIsNotEvidenceOfAnything`** — the floor. Without it the light flashes red
+  on the demo's first click and is ignored by the third.
 
 ---
 
-## Decisions made in this slice
+## Why the sample-ratio check is measured on exposures
 
-**Snapshots, and the threading contract.** A config is immutable and published with one reference
-assignment. `CurrentSnapshot` is a lock-free volatile read, safe from any thread; `Apply`/`Refresh`/
-`PollIfDue` are serialised by an internal lock; events fire outside that lock on the thread that caused
-the change. The intended usage — decided here rather than in Slice 5 — is **fetch on a worker, apply on
-the player loop**. Holding a snapshot across a swap is legitimate: a screen that resolved against version 7
-can keep rendering version 7 until it re-reads, rather than changing under the player mid-frame.
+This is one of the two or three things in this repository most worth being able to explain.
 
-**Rejection is not sticky.** No error latch, no backoff to clear, no unhealthy flag outliving its cause.
-The next payload is read from scratch.
+**The plan originally said to run the chi-square over the assignment split. That is wrong here.** The demo
+ships a deliberate-breakage button that makes one variant skip its exposure logging. Under that fault the
+*assignment* split stays a flawless 50/50 — bucketing is working perfectly — while half the data being
+collected is silently destroyed. An assignment-based ratio light sails straight through the exact failure it
+exists to catch.
 
-**Two events, not one.** `ConfigChanged` fires only when the configuration actually changed and is what
-consumers re-resolve on. `StatusChanged` fires whenever the snapshot reference is replaced, including a
-rung upgrade with identical content. Coming back online with the same payload updates the ladder display
-without re-resolving a single user — the same "many signals, at most one evaluation" discipline the rest
-of the framework follows.
+The population an analysis draws conclusions from is the set of users who **actually saw the treatment**. So
+that is the population whose ratio has to be tested. `SrmCheck` runs over distinct exposed users per arm,
+compared against the configured weights.
 
-**Same version, different bytes → refused.** The version label is a payload's identity. Honouring a silent
-content change would leave the client running something the analysis pipeline attributes to a different
-version 7. Reported once, so the server bug is findable.
+**Two signals, because two faults produce the same symptom.** A skewed exposed split says something is
+wrong; the assignment-to-exposure funnel rate says *what*:
 
-**Log-once resets on genuine health, not on any successful fetch.** Content drift clears the failure
-counters (the transport worked) but not the dedup set (the anomaly persists). Getting this wrong made the
-drift warning repeat on every poll; its own test caught it.
+| Fault | Exposed split | Funnel rate per arm |
+| --- | --- | --- |
+| Suppressed exposure logging in one arm | skewed | **collapsed in that arm** |
+| Skewed bucketing | skewed | healthy everywhere |
 
-**A stickiness flip does not delete pins.** Flipping to `stateless` stops pins being honoured but keeps
-them, so flipping back restores the users who were already treated instead of re-bucketing them. Deleting
-would make the toggle irreversible and destroy the record of who had been treated.
+Both are asserted in `MetricsAggregatorTests`.
 
-**Audience applies after allocation.** A user's bucket does not move because they failed a predicate, so a
-targeted experiment holds its allocation width × match rate. Slice 3's sample-ratio check must compare
-against audience-filtered expectations or a healthy targeted experiment will look broken.
+**Counted in distinct users, not events.** A user returning in a second session is exposed again, and
+counting events would let a handful of heavy users move the ratio. The question is how the population
+divided, so the unit is the person.
 
-**A pin outranks a narrowed audience, but not the kill switch.**
+### Thresholds, and why they are where they are
 
-**Unknown JSON fields are ignored.** Refusing them would turn every additive server change into a forced
-app update. Strictness is spent on declared fields, where it buys the absent-versus-zero distinction.
+| Setting | Value | Reasoning |
+| --- | --- | --- |
+| Minimum expected count per arm | 5 | The standard validity condition for chi-square. Below it the statistic is not meaningful regardless of how much total traffic there is — a 0.02% canary arm suppresses the verdict on its own. |
+| Minimum total exposed users | 100 | A practical floor above the statistical one. The cell rule is satisfied at ten users on an even split, which is far too few for a light somebody is watching. Three against one is not evidence of anything. |
+| Alarm significance | **p < 0.0005** | Not 0.05. SRM is checked continuously over large populations where trivial imbalances become "significant" almost immediately; at 0.05 a healthy experiment alarms one time in twenty, every time anybody looks, and the light is furniture within a week. This is the region production platforms use. |
+| Degrees of freedom | k − 1 over arms **with non-zero weight** | A zero-weight arm is not part of the split. Users found in one are a hard alarm rather than a statistical question — they are in an arm the operator emptied. |
+| Below either floor | `Unknown`, never `Healthy` | "We cannot tell yet" and "we checked and it is fine" are different claims and a status light must not conflate them. |
+
+The statistic is compared against a tabulated critical value rather than converted into a p-value:
+reporting an exact p would mean implementing the regularised incomplete gamma function to display a number
+nobody acts on differently. Beyond fifteen degrees of freedom the critical value falls back to a
+Wilson–Hilferty approximation so a many-armed experiment still gets a verdict.
+
+A warning band between healthy and alarm was considered and dropped. Production SRM is binary, an
+intermediate state invites "it is probably fine", and `Unknown` already covers the honest third case.
+
+---
+
+## Other decisions made in this slice
+
+**A session is a real value with a defined lifetime.** Starts at launch, and again on the first activity
+after thirty idle minutes — the convention every mobile analytics product uses, so these counts mean the
+same thing as the ones in whatever a studio already runs. Dedup is per session rather than per lifetime:
+forever would turn the exposure count into a first-seen count, never would let one user reopening a screen
+dominate an arm. Simulated users each get their own session, without which "simulate 5000 users" collapses
+into one visit.
+
+**Populations are explicit values, not scattered conditions.** Forced is excluded from every metric and from
+SRM; synthetic is included; every report prints the population it was computed over. A user appearing in two
+trait buckets is unioned rather than summed, so hand-testing during a simulation cannot inflate the count.
+
+**Attribution reads the ledger and never re-resolves.** Tested across a weight ramp and across the kill
+switch.
+
+**A conversion credits every experiment the user was exposed to**, because with layers one purchase is
+evidence in both at once. `AttributedCount` still counts one conversion.
+
+**Unattributed conversions are surfaced, not just recorded** — they have a line in the printed table.
+
+**Contamination is flagged rather than swallowed.** Variant is in the dedup key so a user who flips arms
+produces two rows and a flag; the attribution target does not move to the second arm.
+
+**The aggregator is a sink, not a scan.** Constant time per event, counters split across four trait
+buckets so any population is a four-bucket sum at read time. A test asserts the growth is not super-linear.
 
 ---
 
@@ -157,11 +191,25 @@ app update. Strictness is spent on declared fields, where it buys the absent-ver
 
 | Slice | Contents |
 | --- | --- |
-| 3 | Exposure tracking at view time, conversion attribution, analytics sink, SRM guardrail, fuzz/soak invariants |
-| 4 | Lua host, patch loader, variant behavior registry, presentation-spec contract |
-| 5 | Local `HttpListener` config server, programmatic shop screen, metrics and LiveOps panels, `docs/PACKAGE_SPEC.md`, the action-pair audit table |
+| 4 | Lua host, patch loader, variant behavior registry, `PresentationSpec` contract |
+| 5 | Local `HttpListener` config server, shop screen, metrics and LiveOps panels, `docs/PACKAGE_SPEC.md`, the action-pair audit table |
 | 6 | FairyGUI package binding, README, media |
 
-`FileAssignmentStore` and `FileConfigCache` exist and are used by the demo wiring, but have no dedicated
-tests yet: both are thin adapters over an in-memory implementation that is thoroughly covered, and the
-behaviour worth testing in them — surviving a restart — belongs with the PlayMode suite in Slice 5.
+Deferred with reasons:
+
+- **`FileAssignmentStore` and `FileConfigCache` still have no dedicated tests.** Thin adapters over covered
+  in-memory implementations; the behaviour worth testing — surviving a restart — belongs with the PlayMode
+  suite in Slice 5.
+- **`ExposureLedger.ForgetSession` is O(live dedup keys).** Fine at demo scale and called once per simulated
+  user, but it scans rather than indexing by session. If the simulator ever runs six figures of users in one
+  press it wants a session-keyed index; noted rather than built.
+- **The soak's `SweepEvery` is 500.** The cheap invariants run after every operation; the O(population)
+  sweep runs periodically, because every property it checks is monotonic and a violation cannot repair
+  itself before the next sweep. This took the soak from 3m08s to 13s.
+
+### A note on the FairyGUI package
+
+The package is being authored in parallel as `AbTestDemo` at 1600×900 with a phone-shaped `containerDevice`.
+Nothing in this repository binds to it yet. `docs/PACKAGE_SPEC.md` will be written in Slice 5 to **document
+the component and child names that exist**, not to specify them in advance. `ShopScreen` stays an empty
+375×667 container until `PresentationSpec` is fixed in Slice 4.
