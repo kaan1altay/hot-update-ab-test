@@ -157,6 +157,27 @@ namespace HotUpdateABTest.Lua
             PresentationSpec baseline,
             bool hasOriginalPrice = true)
         {
+            return Present(user, assignment, group, baseline, hasOriginalPrice, out _);
+        }
+
+        /// <summary>
+        /// As <see cref="Present(UserContext, VariantAssignment, SpecFieldGroup, PresentationSpec, bool)"/>,
+        /// but also reports why the baseline was returned.
+        /// </summary>
+        /// <remarks>
+        /// The demo needs the distinction on screen: a rejected spec renders the baseline, which looks
+        /// exactly like a working control variant unless something says otherwise. The log alone does not
+        /// disambiguate a still frame.
+        /// </remarks>
+        public PresentationSpec Present(
+            UserContext user,
+            VariantAssignment assignment,
+            SpecFieldGroup group,
+            PresentationSpec baseline,
+            bool hasOriginalPrice,
+            out string rejectionReason)
+        {
+            rejectionReason = null;
             ThrowIfDisposed();
 
             if (user == null) throw new ArgumentNullException(nameof(user));
@@ -167,6 +188,7 @@ namespace HotUpdateABTest.Lua
 
             if (!IsReady)
             {
+                rejectionReason = "the Lua environment is not running";
                 LogOnce("lua.notReady", "the Lua environment is not running; every variant renders control");
                 return baseline;
             }
@@ -180,14 +202,16 @@ namespace HotUpdateABTest.Lua
                 bool ok = result.Length > 0 && result[0] is bool flag && flag;
                 if (!ok)
                 {
+                    rejectionReason = Describe(result, 1);
                     LogOnce("behavior.failed." + behaviorKey,
                         "variant '" + assignment.VariantId + "' of '" + assignment.ExperimentId +
-                        "' renders control: " + Describe(result, 1));
+                        "' renders control: " + rejectionReason);
                     return baseline;
                 }
 
                 if (!(result[1] is LuaTable table))
                 {
+                    rejectionReason = "the behavior returned something that is not a table";
                     LogOnce("behavior.notATable." + behaviorKey,
                         "variant '" + assignment.VariantId + "' returned something that is not a table");
                     return baseline;
@@ -201,6 +225,7 @@ namespace HotUpdateABTest.Lua
 
                     if (!read.IsValid)
                     {
+                        rejectionReason = read.Issues.FirstError;
                         LogOnce("spec.invalid." + behaviorKey,
                             "the spec from '" + behaviorKey + "' was rejected and renders control: " +
                             read.Issues.Describe());
@@ -218,6 +243,7 @@ namespace HotUpdateABTest.Lua
                 // The sandbox and the Lua-side pcall should make this unreachable. It is here because a
                 // variant rendering the wrong thing is survivable and an exception escaping into a UI
                 // callback is not.
+                rejectionReason = e.Message;
                 LogOnce("behavior.threw." + behaviorKey,
                     "calling '" + behaviorKey + "' threw and renders control: " + e.Message);
                 return baseline;

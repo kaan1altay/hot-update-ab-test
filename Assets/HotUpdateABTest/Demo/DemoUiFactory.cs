@@ -76,17 +76,154 @@ namespace HotUpdateABTest.Demo
             return root;
         }
 
+
+        // ---------------------------------------------------------------------------------------------
+        // Shop screen
+        // ---------------------------------------------------------------------------------------------
+
         /// <summary>Builds a stand-in for <c>ShopScreen</c>: an empty 375x667 container.</summary>
-        /// <remarks>
-        /// Empty on purpose, matching the authored component exactly. The interior is built by
-        /// <c>ShopScreenView</c> either way, because the authored interior does not exist yet.
-        /// </remarks>
+        /// <remarks>Empty, matching the authored component. The interior is added by
+        /// <see cref="BuildShopScreenInterior"/> only when the authored one is absent.</remarks>
         public static GComponent CreateShopScreen()
         {
             var screen = new GComponent { name = "ShopScreen" };
             screen.SetSize(375, 667);
             return screen;
         }
+
+        /// <summary>Fills a shop screen with the same children the authored one declares.</summary>
+        /// <remarks>
+        /// Same names, so <c>ShopScreenView</c> cannot tell the two apart. That is the whole point: one
+        /// code path, one set of assertions, and a binding break shows up as a failing test rather than an
+        /// empty phone frame.
+        /// </remarks>
+        public static void BuildShopScreenInterior(GComponent screen)
+        {
+            screen.AddChild(Rect(375, 667, new Color32(0x12, 0x10, 0x0E, 0xFF), "bg"));
+            screen.AddChild(Text("txtShopTitle", "SHOP", 0, 10, 375, 30, 18, Ink, true));
+
+            var list = new GList { name = "listOffers" };
+            list.SetSize(335, 520);
+            list.SetXY(20, 46);
+            list.layout = ListLayoutType.SingleColumn;
+            list.lineGap = 9;
+            list.itemRenderer = null;
+            screen.AddChild(list);
+
+            var cta = new GComponent { name = "btnCta" };
+            cta.SetSize(335, 44);
+            cta.SetXY(20, 576);
+            cta.AddChild(Rect(335, 44, Accent, "bg"));
+            cta.AddChild(Text("title", "Buy", 0, 0, 335, 44, 17, new Color32(0xFF, 0xCC, 0x00, 0xFF), true));
+            screen.AddChild(cta);
+
+            screen.AddChild(Text("txtSpec", "", 8, 630, 359, 30, 12, Dim, true));
+        }
+
+        /// <summary>Builds a stand-in for one <c>OfferCard</c>.</summary>
+        /// <remarks>
+        /// The authored card gears its children across the layout pages. A component built in code has no
+        /// gears, so it listens to its own controller and repositions instead - which keeps
+        /// <c>ShopScreenView</c> identical for both, setting a page and nothing else.
+        /// </remarks>
+        public static GComponent CreateOfferCard()
+        {
+            var card = new GComponent { name = "OfferCard" };
+            card.SetSize(335, 96);
+
+            card.AddChild(Rect(335, 96, new Color32(0x1E, 0x1A, 0x16, 0xFF), "cardBg"));
+            card.AddChild(Rect(64, 64, new Color32(0x3A, 0x32, 0x2A, 0xFF), "imgIcon"));
+            card.AddChild(Text("txtName", "", 0, 0, 160, 22, 14, Ink));
+
+            var original = Text("txtOriginal", "", 0, 0, 70, 18, 12, Dim);
+            original.autoSize = AutoSizeType.Both;
+            card.AddChild(original);
+
+            card.AddChild(Rect(60, 2, Dim, "graphStrike"));
+            card.AddChild(Text("txtPrice", "", 0, 0, 90, 20, 14, new Color32(0x8F, 0xD6, 0x00, 0xFF)));
+            card.AddChild(Rect(74, 18, new Color32(0xB2, 0x00, 0x00, 0xFF), "imgBadgeBg"));
+            card.AddChild(Text("txtBadge", "", 0, 0, 74, 18, 11, Ink, true));
+
+            AddNamedController(card, "layout", "list", "grid");
+            AddNamedController(card, "price", "plain", "discounted");
+            AddNamedController(card, "badge", "none", "shown");
+
+            var layout = card.GetController("layout");
+            var price = card.GetController("price");
+            var badge = card.GetController("badge");
+
+            layout.onChanged.Add(() => LayOutOfferCard(card, layout.selectedPage == "grid"));
+            price.onChanged.Add(() => ShowDiscount(card, price.selectedPage == "discounted"));
+            badge.onChanged.Add(() => ShowBadge(card, badge.selectedPage == "shown"));
+
+            LayOutOfferCard(card, false);
+            ShowDiscount(card, false);
+            ShowBadge(card, false);
+
+            return card;
+        }
+
+        private static void LayOutOfferCard(GComponent card, bool grid)
+        {
+            Resize(card, "cardBg", grid ? 163 : 335, grid ? 190 : 96,
+                new Color32(0x1E, 0x1A, 0x16, 0xFF));
+
+            if (grid)
+            {
+                Place(card, "imgIcon", 50, 12, 64, 64);
+                Place(card, "txtName", 6, 84, 151, 22);
+                Place(card, "txtOriginal", 6, 110, 70, 18);
+                Place(card, "txtPrice", 6, 132, 90, 20);
+                Place(card, "imgBadgeBg", 83, 8, 74, 18);
+                Place(card, "txtBadge", 83, 8, 74, 18);
+            }
+            else
+            {
+                Place(card, "imgIcon", 12, 16, 64, 64);
+                Place(card, "txtName", 88, 14, 160, 22);
+                Place(card, "txtOriginal", 88, 44, 70, 18);
+                Place(card, "txtPrice", 88, 66, 90, 20);
+                Place(card, "imgBadgeBg", 253, 14, 74, 18);
+                Place(card, "txtBadge", 253, 14, 74, 18);
+            }
+        }
+
+        private static void ShowDiscount(GComponent card, bool discounted)
+        {
+            SetVisible(card, "txtOriginal", discounted);
+            SetVisible(card, "graphStrike", discounted);
+        }
+
+        private static void ShowBadge(GComponent card, bool shown)
+        {
+            SetVisible(card, "imgBadgeBg", shown);
+            SetVisible(card, "txtBadge", shown);
+        }
+
+        private static void Place(GComponent card, string name, int x, int y, int width, int height)
+        {
+            var child = card.GetChild(name);
+            if (child == null) return;
+
+            child.SetXY(x, y);
+            if (child is GTextField field && field.autoSize != AutoSizeType.None) return;
+            child.SetSize(width, height);
+        }
+
+        private static void SetVisible(GComponent card, string name, bool visible)
+        {
+            var child = card.GetChild(name);
+            if (child != null) child.visible = visible;
+        }
+
+        private static void Resize(GComponent card, string name, int width, int height, Color color)
+        {
+            if (!(card.GetChild(name) is GGraph graph)) return;
+
+            graph.SetSize(width, height);
+            graph.DrawRect(width, height, 0, Color.clear, color);
+        }
+
 
         private static void BuildTopBar(GComponent root)
         {

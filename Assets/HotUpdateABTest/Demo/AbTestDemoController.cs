@@ -70,6 +70,13 @@ namespace HotUpdateABTest.Demo
         /// <summary>The spec the shop screen should render.</summary>
         public PresentationSpec CurrentSpec { get; private set; } = PresentationSpec.Baseline;
 
+        /// <summary>Why the last render fell back to the baseline, or null when it did not.</summary>
+        /// <remarks>
+        /// Surfaced rather than only logged. A rejected spec renders the baseline, which is visually
+        /// identical to a working control variant - the demo has to be able to say which it is looking at.
+        /// </remarks>
+        public string LastRejectionReason { get; private set; }
+
         /// <summary>The config in force.</summary>
         public ConfigSnapshot Snapshot => _config.CurrentSnapshot;
 
@@ -215,11 +222,13 @@ namespace HotUpdateABTest.Demo
         public PresentationSpec RenderShop()
         {
             var spec = PresentationSpec.Baseline;
+            string rejection = null;
 
-            spec = ApplyLayer(OfferLayer, SpecFieldGroup.Layout, spec);
-            spec = ApplyLayer(PricingLayer, SpecFieldGroup.Pricing, spec);
+            spec = ApplyLayer(OfferLayer, SpecFieldGroup.Layout, spec, ref rejection);
+            spec = ApplyLayer(PricingLayer, SpecFieldGroup.Pricing, spec, ref rejection);
 
             CurrentSpec = spec;
+            LastRejectionReason = rejection;
             return spec;
         }
 
@@ -415,13 +424,21 @@ namespace HotUpdateABTest.Demo
             _server?.Dispose();
         }
 
-        private PresentationSpec ApplyLayer(string layerId, SpecFieldGroup group, PresentationSpec baseline)
+        private PresentationSpec ApplyLayer(
+            string layerId, SpecFieldGroup group, PresentationSpec baseline, ref string rejection)
         {
             var assignment = Resolve(Player, layerId);
             if (!assignment.IsAssigned) return baseline;
             if (_lua == null) return baseline;
 
-            return _lua.Present(Player, assignment, group, baseline, OfferCatalogue.AnyHasOriginalPrice);
+            var spec = _lua.Present(
+                Player, assignment, group, baseline, OfferCatalogue.AnyHasOriginalPrice, out string reason);
+
+            // The first rejection wins the strip. Two rejections at once is possible but says nothing more
+            // than one does, and the log carries both.
+            if (reason != null && rejection == null) rejection = reason;
+
+            return spec;
         }
 
         private VariantAssignment Resolve(UserContext user, string layerId) =>

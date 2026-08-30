@@ -30,12 +30,17 @@ namespace HotUpdateABTest.Demo
         private FairyBinder _binder;
 
         private bool _dirty = true;
+        private bool _fallbackUi;
+        private bool _shutDown;
 
         /// <summary>True when the console was built in code because no package could be loaded.</summary>
         public bool UsingFallbackUi { get; private set; }
 
         /// <summary>The console root, exposed so PlayMode tests can drive it without searching the stage.</summary>
         public GComponent ConsoleRoot => _root;
+
+        /// <summary>The current metrics, exposed for the same reason.</summary>
+        public Core.Telemetry.MetricsReport Report => _controller.BuildReport();
 
         private void Start()
         {
@@ -68,8 +73,22 @@ namespace HotUpdateABTest.Demo
             Repaint();
         }
 
-        private void OnDestroy()
+        private void OnApplicationQuit() => Shutdown();
+
+        private void OnDestroy() => Shutdown();
+
+        /// <summary>Releases the socket, the Lua VM and the UI, once, whatever caused the teardown.</summary>
+        /// <remarks>
+        /// OnDestroy covers leaving play mode and an Editor domain reload; OnApplicationQuit covers a
+        /// player closing. Both route here and the whole thing is idempotent, because an orphaned
+        /// HttpListener still holding :8757 would make the next run silently unable to start its server -
+        /// which is exactly the kind of thing that surfaces halfway through recording.
+        /// </remarks>
+        private void Shutdown()
         {
+            if (_shutDown) return;
+            _shutDown = true;
+
             _controller?.Dispose();
             _lua?.Dispose();
 
@@ -88,6 +107,7 @@ namespace HotUpdateABTest.Demo
 
             _root = TryCreateFromPackage("ConsoleMain");
             UsingFallbackUi = _root == null;
+            _fallbackUi = UsingFallbackUi;
             if (UsingFallbackUi) _root = DemoUiFactory.CreateConsole();
 
             // UIPackage.CreateObject does not name what it creates, and the binder quotes the name in every
@@ -100,9 +120,12 @@ namespace HotUpdateABTest.Demo
             _console.ButtonPressed += OnButton;
 
             var screen = TryCreateFromPackage("ShopScreen") ?? DemoUiFactory.CreateShopScreen();
+            screen.name = "ShopScreen";
             _console.DeviceContainer?.AddChild(screen);
 
-            _shop = new ShopScreenView(screen, _binder, OnOfferPressed);
+            _shop = new ShopScreenView(screen, _binder, CreateOfferCard, OnOfferPressed);
+
+            ValidateBinding(screen);
         }
 
         private void OnButton(string name)
@@ -116,11 +139,36 @@ namespace HotUpdateABTest.Demo
 
         private void OnOfferPressed(string offerId) => _controller.Convert(offerId);
 
+        private static GComponent CreateOfferCard() =>
+            TryCreateFromPackage("OfferCard") ?? DemoUiFactory.CreateOfferCard();
+
+        /// <summary>
+        /// Checks the whole bound tree once and reports every missing name in a single message.
+        /// </summary>
+        /// <remarks>
+        /// Every failed lookup is a name mistyped or a publish forgotten, and the symptom is a dead button
+        /// that looks like a working one. Reporting the first failure would mean finding one typo per run;
+        /// checking at each use site would mean finding them one interaction at a time. One message with
+        /// all of them is the only version that gets fixed in a single pass.
+        /// </remarks>
+        private void ValidateBinding(GComponent screen)
+        {
+            var report = UiValidator.Validate(
+                _root,
+                screen,
+                _fallbackUi ? DemoUiFactory.CreateMetricsRow() : TryCreateFromPackage("MetricsRow"),
+                _fallbackUi ? DemoUiFactory.CreateLogRow() : TryCreateFromPackage("LogRow"),
+                _shop?.SampleCard);
+
+            _log.Log(report.IsComplete ? AbLogLevel.Info : AbLogLevel.Error, report.Describe());
+        }
+
         private void Repaint()
         {
             if (_controller == null || _console == null) return;
 
-            _shop?.Apply(_controller.RenderShop());
+            var spec = _controller.RenderShop();
+            _shop?.Apply(spec, _controller.LastRejectionReason);
 
             _console.SetStatus(_controller.Snapshot, DescribeServer(), DescribeScenario());
             _console.SetForcedBanner(_controller.IsForced, _controller.ForcedDescription ?? "");
@@ -153,6 +201,14 @@ namespace HotUpdateABTest.Demo
             try
             {
                 if (UIPackage.GetByName(PackageName) == null && !LoadPackage()) return null;
+
+                // Ask whether the component exists before asking for it. CreateObject logs a Unity error
+                // for a missing resource rather than returning null quietly, which turns "this component
+                // is not drawn yet" - a legitimate state while the package is being authored - into red
+                // console output and a failed PlayMode test. Same pre-check pattern as the package load.
+                var package = UIPackage.GetByName(PackageName);
+                if (package == null || package.GetItemByName(componentName) == null) return null;
+
                 return UIPackage.CreateObject(PackageName, componentName) as GComponent;
             }
             catch (Exception)

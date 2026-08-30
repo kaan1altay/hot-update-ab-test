@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using FairyGUI;
 using HotUpdateABTest.Core.Presentation;
-using UnityEngine;
 
 namespace HotUpdateABTest.Demo
 {
@@ -11,217 +10,221 @@ namespace HotUpdateABTest.Demo
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The authored <c>ShopScreen</c> component is currently an empty 375x667 container - its interior is
-    /// being drawn against <c>docs/PRESENTATION_SPEC.md</c> and does not exist yet. So this builds the
-    /// interior in code, inside whichever container it is given.
+    /// Binds the authored <c>ShopScreen</c> and its <c>OfferCard</c> items by name. Where the package is
+    /// absent the same structure is built in code with the same names, so this class does not know or care
+    /// which it is driving - which is what lets the PlayMode suite run both through one set of assertions.
     /// </para>
     /// <para>
-    /// It looks for the authored children first and only builds its own when they are absent, so switching
-    /// over when the interior is drawn needs no code change: <c>listOffers</c>, a <c>layout</c> controller
-    /// and a <c>btnCta</c> appearing in the package is all it takes.
+    /// <b>Three orthogonal controllers, not eight arrangements.</b> <c>layout</c> is <c>list</c>/<c>grid</c>,
+    /// <c>price</c> is <c>plain</c>/<c>discounted</c>, <c>badge</c> is <c>none</c>/<c>shown</c>. The first
+    /// two use the spec's own strings as page names, so the enum maps onto a page with no translation table
+    /// - one fewer place for the package and the code to drift apart.
     /// </para>
     /// <para>
-    /// <b>The spec arrives already validated.</b> Everything here is a straight application of an
-    /// enumerated value - there is no branch for "unknown layout", because a spec that reached this point
-    /// cannot carry one. The one exception is a variant asking for the discounted presentation on an offer
-    /// with no original price to strike through, which the renderer walks back to plain rather than
-    /// rendering a struck-through blank.
+    /// <b>The spec arrives already validated</b>, so there is no branch here for an unknown layout: a spec
+    /// carrying one could not have got this far. Two things are still decided at render time, both because
+    /// they depend on data the behavior cannot see - an offer with no original price cannot show a
+    /// struck-through one, and a GList's layout type is not something a controller can gear.
     /// </para>
     /// </remarks>
     public sealed class ShopScreenView
     {
         private const int ScreenWidth = 375;
-        private const int Margin = 12;
+        private const int ListWidth = 335;
+        private const int GridGap = 9;
 
-        private readonly GComponent _screen;
+        private static readonly int[] ListCardSize = { 335, 96 };
+        private static readonly int[] GridCardSize = { 163, 190 };
+
         private readonly FairyBinder _binder;
         private readonly Action<string> _onCta;
+        private readonly Func<GComponent> _cardFactory;
+        private readonly List<GComponent> _cards = new List<GComponent>();
 
-        private readonly List<GComponent> _offerCards = new List<GComponent>();
+        private GList _list;
+        private GObject _cta;
+        private GObject _spec;
 
-        private GComponent _authoredOffers;
-        private Controller _authoredLayout;
-        private GObject _authoredCta;
-
-        private GComponent _builtRoot;
-        private GTextField _builtCta;
+        /// <summary>The screen root, authored or built.</summary>
+        public GComponent Screen { get; }
 
         /// <summary>The spec currently rendered.</summary>
         public PresentationSpec Current { get; private set; } = PresentationSpec.Baseline;
 
-        /// <summary>True when the screen's interior was built in code rather than found in the package.</summary>
-        public bool UsingBuiltInterior => _authoredOffers == null;
+        /// <summary>One offer card, for boot validation to check against the contract.</summary>
+        public GComponent SampleCard => _cards.Count > 0 ? _cards[0] : null;
 
         /// <summary>Creates a view over <paramref name="screen"/>.</summary>
-        /// <param name="onCta">Called with the offer id when a call to action is pressed.</param>
-        public ShopScreenView(GComponent screen, FairyBinder binder, Action<string> onCta)
+        /// <param name="cardFactory">Makes one <c>OfferCard</c>: from the package, or from the fallback.</param>
+        /// <param name="onCta">Called with the offer id when the call to action or a card is pressed.</param>
+        public ShopScreenView(
+            GComponent screen, FairyBinder binder, Func<GComponent> cardFactory, Action<string> onCta)
         {
-            _screen = screen ?? throw new ArgumentNullException(nameof(screen));
+            Screen = screen ?? throw new ArgumentNullException(nameof(screen));
             _binder = binder ?? throw new ArgumentNullException(nameof(binder));
+            _cardFactory = cardFactory ?? throw new ArgumentNullException(nameof(cardFactory));
             _onCta = onCta;
 
-            // Silent probes: the authored interior is expected to be absent today, so a missing child is
-            // not worth a warning yet. Once it exists, the binder's reporting takes over.
-            _authoredOffers = _screen.GetChild("listOffers") as GComponent;
-            _authoredLayout = _screen.GetController("layout");
-            _authoredCta = _screen.GetChild("btnCta");
+            if (Screen.GetChild("listOffers") == null) DemoUiFactory.BuildShopScreenInterior(Screen);
 
-            if (UsingBuiltInterior) BuildInterior();
+            _list = _binder.Child<GList>(Screen, "listOffers", "ShopScreen");
+            _cta = _binder.Child<GObject>(Screen, "btnCta", "ShopScreen");
+            _spec = _binder.Child<GObject>(Screen, "txtSpec", "ShopScreen");
+
+            if (_cta != null) _cta.onClick.Add(() => _onCta?.Invoke(OfferCatalogue.All[0].Id));
+
+            BuildCards();
+            Apply(PresentationSpec.Baseline, null);
         }
 
-        /// <summary>Applies a spec, rebuilding only what changed.</summary>
-        public void Apply(PresentationSpec spec)
+        /// <summary>Applies a spec.</summary>
+        /// <param name="spec">The validated spec to render.</param>
+        /// <param name="rejectionReason">
+        /// Why the spec fell back to the baseline, or null when it did not.
+        /// </param>
+        public void Apply(PresentationSpec spec, string rejectionReason)
         {
             Current = spec;
 
-            if (_authoredLayout != null) _binder.SelectPage(_authoredLayout, PageFor(spec.Layout), "ShopScreen");
-            if (_authoredCta != null) _authoredCta.text = spec.CtaText;
+            ApplyListLayout(spec.Layout);
 
-            if (UsingBuiltInterior) ApplyToBuiltInterior(spec);
+            for (int i = 0; i < _cards.Count; i++) ApplyCard(_cards[i], OfferCatalogue.All[i], spec);
+
+            SetCtaText(spec.CtaText);
+            SetSpecStrip(spec, rejectionReason);
         }
 
-        private static string PageFor(OfferLayout layout) =>
-            layout == OfferLayout.Grid ? "grid" : "list";
-
-        private void BuildInterior()
+        private void BuildCards()
         {
-            _builtRoot = new GComponent { name = "shopInterior" };
-            _builtRoot.SetSize(ScreenWidth, 667);
-            _screen.AddChild(_builtRoot);
+            if (_list == null) return;
 
-            _builtRoot.AddChild(Graph(ScreenWidth, 667, new Color32(0x12, 0x10, 0x0E, 0xFF), "bg"));
-            _builtRoot.AddChild(Label("txtShopTitle", "SHOP", 0, 12, ScreenWidth, 34, 20, Color.white, true));
+            _list.RemoveChildren();
+            _cards.Clear();
 
-            foreach (var offer in OfferCatalogue.All) _offerCards.Add(BuildOfferCard(offer));
+            foreach (var offer in OfferCatalogue.All)
+            {
+                var card = _cardFactory();
+                if (card == null) return;
 
-            _builtCta = Label("btnCta", "Buy", Margin, 600, ScreenWidth - (Margin * 2), 44, 18,
-                new Color32(0xFF, 0xCC, 0x00, 0xFF), true);
-            _builtRoot.AddChild(Graph(ScreenWidth - (Margin * 2), 44,
-                new Color32(0x66, 0x33, 0x00, 0xFF), "ctaBg", Margin, 600));
-            _builtRoot.AddChild(_builtCta);
+                string offerId = offer.Id;
+                card.onClick.Add(() => _onCta?.Invoke(offerId));
 
-            ApplyToBuiltInterior(PresentationSpec.Baseline);
+                _cards.Add(card);
+                _list.AddChild(card);
+            }
         }
 
-        private GComponent BuildOfferCard(Offer offer)
+        /// <summary>
+        /// Sets the list's arrangement. Code rather than a gear, because a GList's layout type is not
+        /// something a controller can drive.
+        /// </summary>
+        /// <remarks>
+        /// The grid gap is chosen so two cards fill the same width as one list card: 163 + 9 + 163 = 335.
+        /// Without that the two arrangements would sit on different margins and the layout change would
+        /// read as a mistake rather than a variant.
+        /// </remarks>
+        private void ApplyListLayout(OfferLayout layout)
         {
-            var card = new GComponent { name = "offer_" + offer.Id };
-            card.AddChild(Graph(1, 1, new Color32(0x1E, 0x1A, 0x16, 0xFF), "cardBg"));
-            card.AddChild(Label("txtTitle", offer.Title, 8, 6, 100, 22, 14, Color.white));
-            card.AddChild(Label("txtOriginalPrice", offer.OriginalPriceText, 8, 30, 80, 20, 12,
-                new Color32(0x88, 0x88, 0x88, 0xFF)));
-            card.AddChild(Label("txtPrice", offer.PriceText, 8, 30, 80, 20, 14,
-                new Color32(0x8F, 0xD6, 0x00, 0xFF)));
+            if (_list == null) return;
 
-            var badge = new GComponent { name = "badge" };
-            badge.SetSize(80, 20);
-            badge.AddChild(Graph(80, 20, new Color32(0xB2, 0x00, 0x00, 0xFF), "badgeBg"));
-            badge.AddChild(Label("txtBadge", "", 0, 0, 80, 20, 11, Color.white, true));
-            card.AddChild(badge);
-
-            _builtRoot.AddChild(card);
-
-            // A press anywhere on a card is a conversion for that offer. The call to action is the
-            // headline, but a demo where only one button converts makes the funnel dull to watch.
-            card.onClick.Add(() => _onCta?.Invoke(offer.Id));
-            return card;
+            if (layout == OfferLayout.Grid)
+            {
+                _list.layout = ListLayoutType.FlowHorizontal;
+                _list.columnGap = GridGap;
+                _list.lineGap = GridGap;
+            }
+            else
+            {
+                _list.layout = ListLayoutType.SingleColumn;
+                _list.lineGap = GridGap;
+            }
         }
 
-        private void ApplyToBuiltInterior(PresentationSpec spec)
+        private void ApplyCard(GComponent card, Offer offer, PresentationSpec spec)
         {
             bool grid = spec.Layout == OfferLayout.Grid;
+            int[] size = grid ? GridCardSize : ListCardSize;
 
-            int columns = grid ? 2 : 1;
-            int cardWidth = grid
-                ? (ScreenWidth - (Margin * 3)) / 2
-                : ScreenWidth - (Margin * 2);
-            int cardHeight = grid ? 110 : 76;
+            // The card's own size is set here rather than geared: FairyGUI gears children, not the root.
+            card.SetSize(size[0], size[1]);
+            _binder.SelectPage(card.GetController("layout"), grid ? "grid" : "list", "OfferCard");
 
-            for (int i = 0; i < _offerCards.Count; i++)
-            {
-                var card = _offerCards[i];
-                var offer = OfferCatalogue.All[i];
+            SetChildText(card, "txtName", offer.Title);
+            SetChildText(card, "txtPrice", offer.PriceText);
 
-                int column = i % columns;
-                int row = i / columns;
-
-                card.SetSize(cardWidth, cardHeight);
-                card.SetXY(
-                    Margin + (column * (cardWidth + Margin)),
-                    60 + (row * (cardHeight + Margin)));
-
-                Resize(card, "cardBg", cardWidth, cardHeight);
-                ApplyPricing(card, offer, spec, cardWidth);
-            }
-
-            if (_builtCta != null) _builtCta.text = spec.CtaText;
-        }
-
-        private static void ApplyPricing(GComponent card, Offer offer, PresentationSpec spec, int cardWidth)
-        {
-            // A variant may ask for the discounted presentation on an offer that has no original price.
-            // Rendering a struck-through blank would be worse than quietly presenting it plainly, and the
-            // behavior is given `has_original_price` precisely so it can avoid asking.
+            // A variant may ask for the discounted presentation on an offer with no original price to
+            // strike through. Rendering a struck-through blank would be worse than presenting it plainly,
+            // and the behavior is handed `has_original_price` precisely so it can avoid asking.
             bool discounted = spec.PriceStyle == PriceStyle.Discounted && offer.HasOriginalPrice;
+            _binder.SelectPage(card.GetController("price"), discounted ? "discounted" : "plain", "OfferCard");
 
-            var original = card.GetChild("txtOriginalPrice");
-            var price = card.GetChild("txtPrice");
+            SetChildText(card, "txtOriginal", offer.OriginalPriceText);
+            if (discounted) SizeStrikeThrough(card);
 
-            if (original != null)
+            _binder.SelectPage(card.GetController("badge"), spec.HasBadge ? "shown" : "none", "OfferCard");
+            if (spec.HasBadge) SetChildText(card, "txtBadge", spec.BadgeText);
+        }
+
+        /// <summary>
+        /// Stretches the strike-through line across the original price.
+        /// </summary>
+        /// <remarks>
+        /// Done in code because the width depends on the text, which depends on the offer. The text is
+        /// written first so its auto-size has resolved before the line is measured against it; reading the
+        /// width before the assignment gives the previous offer's price.
+        /// </remarks>
+        private static void SizeStrikeThrough(GComponent card)
+        {
+            var original = card.GetChild("txtOriginal");
+            var strike = card.GetChild("graphStrike");
+            if (original == null || strike == null) return;
+
+            strike.width = original.width;
+            strike.x = original.x;
+            strike.y = original.y + (original.height / 2f);
+        }
+
+        private void SetCtaText(string text)
+        {
+            if (_cta == null) return;
+
+            // A GButton exposes its label as .text; a plain component holds a child called title. Both
+            // shapes appear - the authored button is the first, the fallback the second.
+            if (_cta is GButton button) button.title = text;
+            else if (_cta is GComponent component && component.GetChild("title") != null)
             {
-                original.visible = discounted;
-
-                // FairyGUI has no strikethrough on a plain text field, so the original price is marked with
-                // surrounding dashes. Crude, and honest: the authored package will do this properly.
-                original.text = discounted ? "-" + offer.OriginalPriceText + "-" : offer.OriginalPriceText;
+                component.GetChild("title").text = text;
             }
-
-            if (price != null) price.SetXY(discounted ? 92 : 8, 30);
-
-            var badge = card.GetChild("badge") as GComponent;
-            if (badge == null) return;
-
-            badge.visible = spec.HasBadge;
-            badge.SetXY(cardWidth - 88, 6);
-
-            var badgeText = badge.GetChild("txtBadge");
-            if (badgeText != null) badgeText.text = spec.BadgeText ?? "";
+            else _cta.text = text;
         }
 
-        private static void Resize(GComponent card, string childName, int width, int height)
+        /// <summary>
+        /// Writes the debug strip that says what is currently applied.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// It exists so every recorded beat is readable in a still frame. Without it a viewer sees the shop
+        /// change and has to guess which of the two experiments moved.
+        /// </para>
+        /// <para>
+        /// It also names a rejection. Showing only the baseline would make a rejected spec look exactly
+        /// like a working control variant, which is the one confusion this demo cannot afford - and the
+        /// log line, being off in the log panel, does not disambiguate the shop screen in a still.
+        /// </para>
+        /// </remarks>
+        private void SetSpecStrip(PresentationSpec spec, string rejectionReason)
         {
-            if (card.GetChild(childName) is GGraph graph)
-            {
-                graph.SetSize(width, height);
-                graph.DrawRect(width, height, 0, Color.clear, new Color32(0x1E, 0x1A, 0x16, 0xFF));
-            }
+            if (_spec == null) return;
+
+            _spec.text = rejectionReason == null
+                ? spec.ToString()
+                : spec + "   [FALLBACK: spec rejected]";
         }
 
-        private static GGraph Graph(int width, int height, Color color, string name, int x = 0, int y = 0)
+        private static void SetChildText(GComponent card, string name, string text)
         {
-            var graph = new GGraph { name = name };
-            graph.SetSize(width, height);
-            graph.SetXY(x, y);
-            graph.DrawRect(width, height, 0, Color.clear, color);
-            return graph;
-        }
-
-        private static GTextField Label(
-            string name, string text, int x, int y, int width, int height, int size, Color color,
-            bool centred = false)
-        {
-            var field = new GTextField { name = name };
-            field.SetSize(width, height);
-            field.SetXY(x, y);
-            field.textFormat = new TextFormat
-            {
-                size = size,
-                color = color,
-                align = centred ? AlignType.Center : AlignType.Left
-            };
-            field.verticalAlign = VertAlignType.Middle;
-            field.text = text;
-            return field;
+            var child = card.GetChild(name);
+            if (child != null) child.text = text ?? "";
         }
     }
 }

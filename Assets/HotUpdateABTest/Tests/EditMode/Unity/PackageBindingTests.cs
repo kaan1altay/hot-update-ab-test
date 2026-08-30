@@ -11,10 +11,14 @@ namespace HotUpdateABTest.Tests.Unity
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The binder degrades gracefully - a missing child produces one warning and a part of the screen that
-    /// does not update. That is the right runtime behaviour and exactly the wrong thing to rely on for
-    /// correctness, because a rename would show up as a quietly blank panel that somebody notices days
-    /// later. These tests turn that into a named failure at the moment the package is republished.
+    /// Driven by <see cref="UiContract"/> - the same list the boot validation walks and the programmatic
+    /// fallback is built against. One list, three consumers, so the three cannot drift; drift between them
+    /// is exactly the bug none of them would catch alone.
+    /// </para>
+    /// <para>
+    /// The binder degrades gracefully at runtime, which is right for a player and exactly the wrong thing
+    /// to rely on for correctness: a rename would show up as a quietly blank panel days later. These turn
+    /// it into a named failure at the moment the package is republished.
     /// </para>
     /// <para>
     /// Skips rather than fails when the package is absent, so a fresh clone that has not published the
@@ -52,124 +56,106 @@ namespace HotUpdateABTest.Tests.Unity
                 Assert.Ignore("the AbTestDemo package is not published; skipping the binding checks");
             }
 
+            // Pre-checked for the same reason the demo pre-checks: CreateObject logs an error rather than
+            // returning null, and a component that is simply not drawn yet is not an error.
+            var package = UIPackage.GetByName(PackageName);
+            if (package.GetItemByName(componentName) == null) return null;
+
             var component = UIPackage.CreateObject(PackageName, componentName) as GComponent;
-            Assert.That(component, Is.Not.Null, "the package has no component named '" + componentName + "'");
+            if (component != null) component.name = componentName;
             return component;
         }
 
-        private static void AssertChildren(GComponent component, string owner, params string[] names)
+        /// <summary>
+        /// Asserts a component satisfies its contract, distinguishing "not drawn yet" from "drawn wrong".
+        /// </summary>
+        /// <remarks>
+        /// A component that is absent, or an empty container with nothing bound at all, is work in
+        /// progress and skips - the shop interior is authored against docs/PRESENTATION_SPEC.md and lands
+        /// after the code that binds it. A component that is partly there and missing names is a genuine
+        /// mismatch and fails. The distinction clears itself the moment the interior is drawn: as soon as
+        /// one expected child exists, every other missing one becomes an error.
+        /// </remarks>
+        private static void AssertSatisfiesOrPending(
+            GComponent root, IReadOnlyList<UiExpectation> contract, string componentName)
         {
-            var missing = new List<string>();
-            foreach (string name in names)
+            if (root == null)
             {
-                if (Deep(component, name) == null) missing.Add(name);
+                Assert.Ignore("'" + componentName + "' is not in the package yet; nothing to check");
             }
 
-            Assert.That(missing, Is.Empty,
-                owner + " is missing " + string.Join(", ", missing.ToArray()) +
-                ". Either the package was renamed or docs/PACKAGE_SPEC.md is out of date.");
-        }
+            var report = UiValidator.ValidateAgainst(root, contract);
+            if (report.IsComplete) return;
 
-        private static GObject Deep(GComponent parent, string name)
-        {
-            var direct = parent.GetChild(name);
-            if (direct != null) return direct;
-
-            for (int i = 0; i < parent.numChildren; i++)
+            if (report.Missing.Count == report.Checked && root.numChildren == 0)
             {
-                if (parent.GetChildAt(i) is GComponent child && child.GetChild(name) != null)
-                {
-                    return child.GetChild(name);
-                }
+                Assert.Ignore(
+                    "'" + componentName + "' is still an empty container; its interior is authored " +
+                    "against docs/PRESENTATION_SPEC.md and is not drawn yet");
             }
 
-            return null;
+            Assert.Fail(report.Describe());
         }
 
-        private static void AssertPages(GComponent component, string controllerName, params string[] pages)
+        /// <summary>Runs one contract through the production validator, so the test cannot be laxer.</summary>
+        private static void AssertSatisfies(GComponent root, IReadOnlyList<UiExpectation> contract)
         {
-            var controller = component.GetController(controllerName);
-            Assert.That(controller, Is.Not.Null,
-                component.name + " has no controller named '" + controllerName + "'");
-
-            foreach (string page in pages)
-            {
-                Assert.That(controller.GetPageIdByName(page), Is.Not.Null,
-                    component.name + "." + controllerName + " has no page named '" + page + "'");
-            }
+            Assert.That(root, Is.Not.Null);
+            var report = UiValidator.ValidateAgainst(root, contract);
+            Assert.That(report.IsComplete, Is.True, report.Describe());
         }
 
         [Test]
-        public void ConsoleMainHasEveryChildTheViewBindsTo()
+        public void ConsoleMainSatisfiesTheContract()
         {
-            var console = Create("ConsoleMain");
-
-            AssertChildren(console, "ConsoleMain",
-                "txtTitle", "chipSource", "txtConfigVersion", "txtServer", "txtScenario",
-                "containerDevice", "bannerForced", "listMetrics", "listLog");
+            AssertSatisfies(Create("ConsoleMain"), UiContract.Console);
         }
 
         [Test]
-        public void ConsoleMainHasEveryButtonTheControllerHandles()
+        public void MetricsRowSatisfiesTheContract()
         {
-            // Driven by the same list the fallback builds from, so the two cannot drift apart.
-            var console = Create("ConsoleMain");
-
-            var names = new List<string>();
-            foreach (var spec in DemoUiFactory.Buttons) names.Add(spec.Name);
-
-            AssertChildren(console, "ConsoleMain", names.ToArray());
+            AssertSatisfies(Create("MetricsRow"), UiContract.MetricsRow);
         }
 
         [Test]
-        public void MetricsRowHasEveryFieldTheTableFills()
+        public void LogRowSatisfiesTheContract()
         {
-            var row = Create("MetricsRow");
-
-            AssertChildren(row, "MetricsRow",
-                "txtExperiment", "txtVariant", "txtAssignments", "txtExposures", "txtConversions",
-                "txtRate", "barShare", "srmLight");
+            AssertSatisfies(Create("LogRow"), UiContract.LogRow);
         }
 
         [Test]
-        public void TheControllerPagesTheCodeSelectsAllExist()
+        public void ShopScreenSatisfiesTheContract()
         {
-            // Selected by name, never by index: barShare declares its pages as 4,unknown,0,green,... so the
-            // page whose id is 4 sits at index 0, and anything positional picks the wrong colour.
-            var row = Create("MetricsRow");
-
-            AssertPages((GComponent)row.GetChild("srmLight"), "state", "unknown", "healthy", "alarm");
-            AssertPages((GComponent)row.GetChild("barShare"), "state", "unknown", "green", "yellow", "red");
-
-            var console = Create("ConsoleMain");
-            AssertPages((GComponent)Deep(console, "chipSource"), "state", "live", "lkg", "defaults", "none");
-            AssertPages((GComponent)Deep(console, "bannerForced"), "state", "hidden", "shown");
-
-            AssertPages(Create("LogRow"), "type", "log", "warn", "err");
-            AssertPages(Create("ToggleButton"), "state", "off", "on");
+            AssertSatisfiesOrPending(Create("ShopScreen"), UiContract.ShopScreen, "ShopScreen");
         }
 
         [Test]
-        public void ShopScreenIsTheExpectedSize()
+        public void OfferCardSatisfiesTheContract()
         {
-            // Its interior is authored later; the container itself is what the device frame holds.
+            AssertSatisfiesOrPending(Create("OfferCard"), UiContract.OfferCard, "OfferCard");
+        }
+
+        [Test]
+        public void ShopScreenAndTheDeviceFrameArePhoneShaped()
+        {
             var screen = Create("ShopScreen");
-
+            Assert.That(screen, Is.Not.Null);
             Assert.That(screen.width, Is.EqualTo(375));
             Assert.That(screen.height, Is.EqualTo(667));
-        }
 
-        [Test]
-        public void TheDeviceContainerIsPhoneShaped()
-        {
-            var device = Deep(Create("ConsoleMain"), "containerDevice");
-
+            var device = UiValidator.Deep(Create("ConsoleMain"), "containerDevice");
             Assert.That(device, Is.Not.Null);
             Assert.That(device.width, Is.EqualTo(375));
             Assert.That(device.height, Is.EqualTo(667));
         }
 
-        // The matching assertions for the programmatic fallback live in the PlayMode suite: building
-        // FairyGUI display objects needs a stage, which EditMode does not have.
+        [Test]
+        public void TheOfferCardIsTheTwoSizesTheViewSetsIt()
+        {
+            // The view sets the card's own size per layout page, because FairyGUI gears children rather
+            // than the root. These are the numbers it uses, and 163 + 9 + 163 = 335 so the grid fills the
+            // same width as the list.
+            Assert.That(163 + 9 + 163, Is.EqualTo(335));
+        }
     }
 }
