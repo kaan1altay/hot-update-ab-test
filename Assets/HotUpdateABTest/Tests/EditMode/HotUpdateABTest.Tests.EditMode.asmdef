@@ -1,0 +1,26 @@
+{
+    "name": "HotUpdateABTest.Tests.EditMode",
+    "rootNamespace": "HotUpdateABTest.Tests",
+    "references": [
+        "HotUpdateABTest.Core",
+        "HotUpdateABTest.Runtime",
+        "XLua",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
