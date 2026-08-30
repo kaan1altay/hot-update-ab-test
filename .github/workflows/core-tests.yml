@@ -1,0 +1,63 @@
+name: core tests
+
+# The engine-free decision core - bucketing, layer allocation, config validation, telemetry - is
+# compiled and tested here as a plain .NET project. That deliberately excludes everything that needs
+# Unity: the Lua bridge, the HTTP transport and the FairyGUI demo are covered by the Editor test
+# suites instead, and docs/STATUS.md carries the batchmode command for running those locally.
+#
+# Running Unity itself in CI was considered and rejected. It needs a licence secret, and the vendored
+# xLua native plugin is desktop x64 only, so a licence hiccup or a runner image change would show a
+# red badge for reasons that have nothing to do with the code.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: dotnet test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # The core's whole point is that it does not depend on the engine. The build below would fail
+      # anyway, because the project has no Unity references to satisfy such a using directive, but the
+      # failure would be a wall of CS0246. This check names the actual rule that was broken.
+      - name: Core must not reference UnityEngine
+        run: |
+          if grep -rn --include='*.cs' -E '^\s*using\s+Unity(Engine|Editor)' Assets/HotUpdateABTest/Runtime/Core/; then
+            echo "::error::Files under Runtime/Core must stay free of UnityEngine and UnityEditor."
+            echo "Move engine-dependent code to Runtime/Unity/ instead."
+            exit 1
+          fi
+          echo "Core is engine-free."
+
+      - name: Restore
+        run: dotnet restore dotnet/HotUpdateABTest.sln
+
+      - name: Build
+        run: dotnet build dotnet/HotUpdateABTest.sln --no-restore --configuration Release
+
+      - name: Test
+        run: >-
+          dotnet test dotnet/HotUpdateABTest.sln
+          --no-build --configuration Release
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=core-tests.trx"
+          --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore

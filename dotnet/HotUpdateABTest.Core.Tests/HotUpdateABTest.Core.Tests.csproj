@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The engine-free decision core, compiled a second time.
+
+    Everything under Assets/HotUpdateABTest/Runtime/Core is written without a single reference to
+    UnityEngine, so it can also be built as a plain .NET library. This project links those files in
+    (it does not copy them) together with the tests that only exercise that core, which buys three
+    things: the test suite for bucketing, config validation and telemetry runs in CI in about a
+    second with no Unity licence and no native xLua plugin; LangVersion below pins the same C#
+    level Unity 6 accepts, so CI rejects syntax the Editor would reject; and the architectural
+    claim that the core has no engine dependency stops being a comment and becomes a build that
+    fails the moment somebody types `using UnityEngine` in the wrong folder.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+
+    <!-- Unity 6000.0 compiles C# 9. Pinning it here means CI catches newer syntax before the Editor does. -->
+    <LangVersion>9.0</LangVersion>
+
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>HotUpdateABTest</RootNamespace>
+    <AssemblyName>HotUpdateABTest.Core.Tests</AssemblyName>
+
+    <!-- Nothing is compiled by convention; every file is linked explicitly below. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+    <!-- Missing XML comment on a public member: the Unity side does not enforce this, so neither does CI. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup Label="Engine-free core, linked from the Unity project">
+    <Compile Include="$(MSBuildThisFileDirectory)../../Assets/HotUpdateABTest/Runtime/Core/**/*.cs"
+             LinkBase="Core" />
+  </ItemGroup>
+
+  <ItemGroup Label="Core tests, linked from the Unity EditMode test folder">
+    <Compile Include="$(MSBuildThisFileDirectory)../../Assets/HotUpdateABTest/Tests/EditMode/Core/**/*.cs"
+             LinkBase="Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Pinned to match what Unity ships. Newtonsoft 13.0.3 is what com.unity.nuget.newtonsoft-json 3.2.1
+      contains, and NUnit stays on 3.x because that is the generation the Unity Test Framework uses -
+      NUnit 4 removed the classic Assert.AreEqual surface, so a 4.x here would compile tests the Editor
+      then refuses.
+    -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+  </ItemGroup>
+
+</Project>
