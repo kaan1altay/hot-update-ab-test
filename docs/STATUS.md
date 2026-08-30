@@ -1,10 +1,14 @@
-# Status
+| `dotnet test` (engine-free core) | 224 | 224 passed, ~16 s |
+| Unity EditMode batchmode | 269 | 269 passed |
+
+The Unity run is a superset: the same 224 core tests plus 45 that need the engine and the Lua VM. The soak
+accounts for most of the 16 seconds; the rest of the core suite is about one second.# Status
 
 Engineering log for `hot-update-ab-test`. Updated at the end of every slice, so the numbers here are
 checkable rather than claimed.
 
-**Slice 3 of 6 complete.** Exposure at view time, conversion attribution, the sample-ratio guardrail, and a
-randomised soak over the whole framework.
+**Slice 4 of 6 complete.** The Lua seam: a sandboxed VM, a closed presentation vocabulary, hot-updatable
+variant behavior and audience predicates.
 
 ---
 
@@ -91,6 +95,11 @@ almost all of the 13 seconds; the rest of the suite is about one second.
 | `SrmCheckTests` | 13 | Healthy and skewed splits, sampling noise not alarming, both floors, zero-weight arms, single-arm and empty cases, the many-arm approximation |
 | `MetricsAggregatorTests` | 12 | Both breakage modes and the negative control, population filtering, orphaned arms, the printed table, aggregation cost |
 | `TelemetrySoakTests` | 2 | 20,000 randomised operations per seed, two seeds, invariants throughout |
+| `PresentationSpecReaderTests` | 21 | The closed field set, every authored value, unknown fields and values rejected, layer ownership, whole-table rejection, text limits, composition |
+| `AudiencePredicateTests` | 8 | Predicate read from config, match and mismatch, fail-closed with no evaluator, clause-before-predicate ordering, narrowing only |
+| `LuaSandboxTests` | 11 | Filesystem, process control, the C# bridge, `_G`, `require`, runtime compilation, `debug`, bytecode, nondeterminism sources, cross-patch leakage, and that the pure libraries still work |
+| `LuaVariantHostTests` | 22 | Baseline behaviors, purity over 50 calls, one-broken-patch isolation, staged registration, reload idempotence, deletion reverting, a patch adding a variant, every spec rejection path, predicates failing closed, disposal |
+| `LuaCannotReachTelemetryTests` | 6 | A patch attacking the sink through the context, the C# bridge and enumeration; suppression and duplication attempts; the context proven to carry values only |
 | `LuaEnvironmentSmokeTests` | 5 | Native VM under batchmode, values both ways, `LuaFunction` handles, `LuaException`, custom `require` loader |
 
 ### Tests that demonstrate the failure mode rather than the success path
@@ -107,6 +116,74 @@ almost all of the 13 seconds; the rest of the suite is about one second.
   toggle is lossless.
 - **`SrmCheckTests.ThreeAgainstOneIsNotEvidenceOfAnything`** — the floor. Without it the light flashes red
   on the demo's first click and is ignored by the third.
+- **`LuaCannotReachTelemetryTests`** — the whole fixture. Six patches attack the analytics sink by
+  different routes and each asserts the sink is *untouched* afterwards. A patch that could forge an
+  exposure would make every number downstream meaningless while leaving the reports looking normal, which
+  is worse than an outage because an outage is visible.
+- **`LuaVariantHostTests.APatchThatThrowsWhileRegisteringCommitsNothingItStaged`** — the half-applied patch.
+  Registers one variant, throws, and neither registration survives.
+
+---
+
+## The Lua sandbox
+
+A patch channel is a remote code execution channel. Whoever can publish a patch runs code on every device
+that fetches it, so the environment is decided deliberately rather than inherited.
+
+### What a patch can reach
+
+| Available | Why |
+| --- | --- |
+| `string`, `table` | Pure, and what a copy-formatting behavior is actually made of. |
+| `math` **minus `random` and `randomseed`** | Arithmetic is fine; a random source would break purity. |
+| `assert`, `error`, `pcall`, `xpcall`, `select`, `type`, `tostring`, `tonumber` | Pure language built-ins. |
+| `pairs`, `ipairs`, `next`, `rawget`, `rawset`, `rawlen`, `rawequal`, `setmetatable`, `getmetatable`, `unpack` | Table manipulation. |
+| `print` | Routed into the framework log with a `[lua]` prefix; never stdout. |
+| `register`, `register_audience` | The two things a patch exists to do. |
+
+### What is removed, and why
+
+| Removed | Reason |
+| --- | --- |
+| **`CS`, `xlua`** | xLua's bridge to the entire C# type system. Left in, a patch reaches the analytics sink, the filesystem and UnityEngine directly — **every other omission here would be decorative**. |
+| `io`, `os` | Filesystem and process control. `os` also carries `time`, `clock` and `date`, which would break purity even if the rest were harmless. |
+| `require`, `package` | A patch may not pull in modules of its own choosing; C# decides what source runs. There is **no `require` at all** — C# reads files and hands source to a sandboxed `load`, which is stronger than the conventional filtered-`require`. |
+| `load`, `loadstring`, `dofile`, `loadfile` | Compiling more code at runtime routes straight around the sandbox by supplying a different `_ENV`. |
+| `debug` | `getupvalue`/`setupvalue` reach into other closures, including the registry's. |
+| `coroutine` | No use case, and suspended state across calls would undermine purity. |
+| `collectgarbage` | A patch has no business tuning the VM. |
+| `_G` | The real global table. Exposing it makes the whole exercise decorative. |
+| `math.random`, `math.randomseed` | The same user must resolve to the same presentation every time. |
+
+**Text mode only.** Chunks load with `load(source, name, "t", sandbox)`. The Lua bytecode verifier is not
+hardened and crafted bytecode can subvert the VM outright, so a channel accepting source alone is a
+materially smaller attack surface.
+
+**The bootstrap is not patchable.** It defines the sandbox and lives outside the patch root — a hot update
+that could replace it could rewrite the rules it is supposed to obey.
+
+### The context a behavior sees
+
+Values only: `user_id`, `account_level`, `platform`, `country`, `layer_id`, `experiment_id`, `variant_id`,
+`config_version`, `has_original_price`. No functions, no C# objects, no collections. Adding a field here is
+a decision about what a hot update can reach, which is why the list is short and every entry is a plain
+scalar. A test walks the context asserting every value is a string, number or boolean.
+
+### Purity
+
+Enforced by construction rather than convention: with no clock and no random source there is nothing to be
+impure with. `CallingABehaviorTwiceWithTheSameContextGivesAnIdenticalSpec` calls fifty times and compares.
+
+### Action pairs
+
+| Enters state | Returns to prior state |
+| --- | --- |
+| Drop a patch file, reload | Delete the file, reload — the variant returns to its baseline definition |
+| Reload repeatedly | No-op; reload rebuilds from scratch rather than diffing, so it cannot double-register |
+| A patch overrides a baseline variant | Delete the patch, reload |
+| A broken patch is skipped | Fix or remove it; the log-once key clears when a reload has no failures |
+
+Both directions are tested.
 
 ---
 
@@ -158,7 +235,48 @@ intermediate state invites "it is probably fine", and `Unknown` already covers t
 
 ---
 
-## Other decisions made in this slice
+## Decisions made in this slice
+
+**The presentation spec is closed and finite.** Four fields, enumerated values, unknown keys rejected. The
+value sets are enumerated against what the FairyGUI package actually contains: accepting `layout =
+"carousel"` when no carousel was drawn would let a patch produce a *valid* spec the screen cannot render,
+which is validation passing the buck to the renderer. An unrecognised value is treated exactly like a
+malformed spec — fall back to control, log once. A test asserts the enum members are the authored ones, and
+another asserts the combination count stays at or under eight so the package remains authorable
+exhaustively. Full authoring contract in `docs/PRESENTATION_SPEC.md`.
+
+**Spec fields are owned by layer.** A pricing behavior that sets `layout` has its whole spec rejected rather
+than winning or losing a precedence fight. Resolving by precedence would mean one layer silently losing, and
+the loser's experiment would then be measuring nothing.
+
+**Lua sets no prices.** `priceStyle = "discounted"` presents the catalogue's existing original price struck
+through; it does not apply a discount. A channel that can run code on every device should not also be able
+to change what things cost.
+
+**Rejection is whole-table.** One bad field discards the good ones too, for the same reason config rejection
+is whole-payload. Text longer than the screen can hold is rejected rather than truncated — silent clipping
+produces a screen that looks deliberate and reads as nonsense, and the patch author never finds out.
+
+**Registrations are staged per patch file and committed only on success.** A file that registers two
+variants and then throws leaves neither behind.
+
+**Reload rebuilds rather than diffs.** Idempotent reload and reverting deletion both fall out for free,
+rather than being two features to get right separately.
+
+**Audience predicates AND with the declarative clauses.** A patch can only ever narrow an audience, never
+widen one past the bounds the config declared. Clauses are checked first, so an excluded user never pays for
+a Lua call.
+
+**Everything about predicates fails closed** — error, non-boolean, unregistered, or no evaluator wired up at
+all. The last case is worth stating separately: a config asking for a narrowing this build cannot perform is
+not the same as a config asking for no narrowing.
+
+**The spec reader is engine-free and Lua-free.** It validates a plain dictionary, so all 21 of its rules run
+in the one-second CI suite rather than only in a run that needs the native VM.
+
+---
+
+## Decisions carried from Slice 3
 
 **A session is a real value with a defined lifetime.** Starts at launch, and again on the first activity
 after thirty idle minutes — the convention every mobile analytics product uses, so these counts mean the
@@ -191,7 +309,6 @@ buckets so any population is a four-bucket sum at read time. A test asserts the 
 
 | Slice | Contents |
 | --- | --- |
-| 4 | Lua host, patch loader, variant behavior registry, `PresentationSpec` contract |
 | 5 | Local `HttpListener` config server, shop screen, metrics and LiveOps panels, `docs/PACKAGE_SPEC.md`, the action-pair audit table |
 | 6 | FairyGUI package binding, README, media |
 
@@ -201,15 +318,21 @@ Deferred with reasons:
   in-memory implementations; the behaviour worth testing — surviving a restart — belongs with the PlayMode
   suite in Slice 5.
 - **`ExposureLedger.ForgetSession` is O(live dedup keys).** Fine at demo scale and called once per simulated
-  user, but it scans rather than indexing by session. If the simulator ever runs six figures of users in one
-  press it wants a session-keyed index; noted rather than built.
-- **The soak's `SweepEvery` is 500.** The cheap invariants run after every operation; the O(population)
-  sweep runs periodically, because every property it checks is monotonic and a violation cannot repair
-  itself before the next sweep. This took the soak from 3m08s to 13s.
+  user, but it scans rather than indexing by session. Noted rather than built.
+- **The soak's `SweepEvery` is 500.** Cheap invariants run after every operation; the O(population) sweep
+  runs periodically, because every property it checks is monotonic. Took the soak from 3m08s to 13s.
+- **The sandbox is a capability restriction, not a resource limit.** A patch cannot reach the filesystem or
+  the C# bridge, but nothing stops it spinning in a `while true` loop and hanging the frame. Lua has no
+  preemption, so bounding that needs a debug hook with an instruction-count budget. Worth doing before this
+  shipped to real devices; out of scope for a demo where the only patch author is the person running it.
+  **This is the one honest gap in the sandbox and it is deliberate.**
+- **Behaviors are re-invoked per render rather than memoised.** Purity means the result is cacheable by
+  `(behaviorKey, context)`, which would matter for a screen rebuilding every frame. The demo rebuilds on
+  config change and on click, so it is not worth the invalidation surface yet.
 
 ### A note on the FairyGUI package
 
 The package is being authored in parallel as `AbTestDemo` at 1600×900 with a phone-shaped `containerDevice`.
-Nothing in this repository binds to it yet. `docs/PACKAGE_SPEC.md` will be written in Slice 5 to **document
-the component and child names that exist**, not to specify them in advance. `ShopScreen` stays an empty
-375×667 container until `PresentationSpec` is fixed in Slice 4.
+Nothing in this repository binds to it yet. `docs/PRESENTATION_SPEC.md` is the authoring contract handed
+over mid-Slice 4 — what *must* exist. `docs/PACKAGE_SPEC.md` will be written in Slice 5 to document what
+*does* exist, from the real component and child names, and how the code binds to them.
