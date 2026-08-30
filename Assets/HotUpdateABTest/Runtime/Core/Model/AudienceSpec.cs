@@ -25,7 +25,7 @@ namespace HotUpdateABTest.Core.Model
     public sealed class AudienceSpec
     {
         /// <summary>Matches every user. Used when an experiment declares no audience at all.</summary>
-        public static readonly AudienceSpec Everyone = new AudienceSpec(null, null, null);
+        public static readonly AudienceSpec Everyone = new AudienceSpec(null, null, null, null);
 
         private readonly string[] _platforms;
         private readonly string[] _countries;
@@ -39,13 +39,31 @@ namespace HotUpdateABTest.Core.Model
         /// <summary>Allowed country codes, or null for any country.</summary>
         public IReadOnlyList<string> Countries => _countries;
 
+        /// <summary>
+        /// Name of a Lua predicate that must also pass, or null when there is none.
+        /// </summary>
+        /// <remarks>
+        /// The hot-updatable half of targeting. The declarative clauses above are fixed at build time; a
+        /// predicate can be changed or added by a patch, which is what makes it possible to narrow a live
+        /// experiment without shipping a client. It is ANDed with the clauses rather than replacing them,
+        /// so a patch can only ever make an audience narrower - it cannot quietly widen an experiment past
+        /// the bounds the config declared.
+        /// </remarks>
+        public string PredicateKey { get; }
+
         /// <summary>True when this spec excludes nobody.</summary>
-        public bool IsEveryone => MinAccountLevel == null && _platforms == null && _countries == null;
+        public bool IsEveryone =>
+            MinAccountLevel == null && _platforms == null && _countries == null && PredicateKey == null;
 
         /// <summary>Creates an audience spec. A null clause means "do not filter on this".</summary>
-        public AudienceSpec(int? minAccountLevel, IEnumerable<string> platforms, IEnumerable<string> countries)
+        public AudienceSpec(
+            int? minAccountLevel,
+            IEnumerable<string> platforms,
+            IEnumerable<string> countries,
+            string predicateKey = null)
         {
             MinAccountLevel = minAccountLevel;
+            PredicateKey = string.IsNullOrEmpty(predicateKey) ? null : predicateKey;
             _platforms = ToArrayOrNull(platforms);
             _countries = ToArrayOrNull(countries);
         }
@@ -88,6 +106,8 @@ namespace HotUpdateABTest.Core.Model
                        string.Join(", ", _countries) + "]";
             }
 
+            // The predicate is not evaluated here - this type has no way to run Lua. The resolver checks it
+            // separately and produces its own explanation.
             return null;
         }
 
@@ -118,6 +138,7 @@ namespace HotUpdateABTest.Core.Model
             if (MinAccountLevel != null) parts.Add("level >= " + MinAccountLevel.Value);
             if (_platforms != null) parts.Add("platform in [" + string.Join(", ", _platforms) + "]");
             if (_countries != null) parts.Add("country in [" + string.Join(", ", _countries) + "]");
+            if (PredicateKey != null) parts.Add("predicate '" + PredicateKey + "'");
             return string.Join(" and ", parts.ToArray());
         }
     }

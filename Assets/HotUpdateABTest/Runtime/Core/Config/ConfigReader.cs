@@ -269,7 +269,23 @@ namespace HotUpdateABTest.Core.Config
             var platforms = ReadStringArrayOrNull(audience, "platforms", entity + " > audience", issues);
             var countries = ReadStringArrayOrNull(audience, "countries", entity + " > audience", issues);
 
-            return new AudienceSpec(minAccountLevel, platforms, countries);
+            string predicate = null;
+            if (audience.TryGetValue("predicate", out JToken predicateToken) &&
+                predicateToken.Type != JTokenType.Null)
+            {
+                if (predicateToken.Type == JTokenType.String)
+                {
+                    predicate = predicateToken.Value<string>();
+                }
+                else
+                {
+                    issues.Error("audience.predicate.notAString", entity,
+                        "field 'audience.predicate' expected a string naming a Lua predicate, found " +
+                        Describe(predicateToken));
+                }
+            }
+
+            return new AudienceSpec(minAccountLevel, platforms, countries, predicate);
         }
 
         private static List<string> ReadStringArrayOrNull(

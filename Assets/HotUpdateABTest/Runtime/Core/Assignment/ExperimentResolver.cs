@@ -85,6 +85,7 @@ namespace HotUpdateABTest.Core.Assignment
     {
         private readonly IAssignmentStore _store;
         private readonly QaOverrides _overrides;
+        private readonly IAudiencePredicateEvaluator _predicates;
 
         /// <summary>The forced selections in effect. Never null.</summary>
         public QaOverrides Overrides => _overrides;
@@ -92,10 +93,18 @@ namespace HotUpdateABTest.Core.Assignment
         /// <summary>Creates a resolver.</summary>
         /// <param name="store">Where pins live. Optional; without one, every resolve is stateless.</param>
         /// <param name="overrides">Forced selections. Optional; a new empty set is created if omitted.</param>
-        public ExperimentResolver(IAssignmentStore store = null, QaOverrides overrides = null)
+        /// <param name="predicates">
+        /// Runs Lua audience predicates. Optional; when an experiment names a predicate and there is no
+        /// evaluator, the user is excluded rather than admitted - see the fail-closed note below.
+        /// </param>
+        public ExperimentResolver(
+            IAssignmentStore store = null,
+            QaOverrides overrides = null,
+            IAudiencePredicateEvaluator predicates = null)
         {
             _store = store;
             _overrides = overrides ?? new QaOverrides();
+            _predicates = predicates;
         }
 
         /// <summary>Resolves one layer for one user.</summary>
@@ -143,8 +152,8 @@ namespace HotUpdateABTest.Core.Assignment
             var pinned = ResolvePinned(config, experiment, user, layerBucket);
             if (pinned != null) return pinned;
 
-            // 3. Audience.
-            string mismatch = experiment.Audience.ExplainMismatch(user);
+            // 3. Audience: the declarative clauses first, then the Lua predicate if one is named.
+            string mismatch = experiment.Audience.ExplainMismatch(user) ?? ExplainPredicateMismatch(experiment, user);
             if (mismatch != null)
             {
                 return VariantAssignment.NotAssigned(layerId, NoAssignmentReason.AudienceExcluded,
@@ -216,6 +225,31 @@ namespace HotUpdateABTest.Core.Assignment
             _store.Set(user.UserId, new AssignmentPin(
                 assignment.ExperimentId, assignment.VariantId, nowUtc, assignment.ConfigVersion));
             return true;
+        }
+
+        /// <summary>
+        /// Runs the experiment's Lua audience predicate, if it names one, and explains a failure.
+        /// </summary>
+        /// <remarks>
+        /// Fails closed at every step, including the case where no evaluator was supplied at all. A named
+        /// predicate that cannot be run is not the same as no predicate: the config asked for a narrowing
+        /// that this build cannot perform, and admitting the user anyway would apply a treatment to a
+        /// population nobody scoped. Excluding them costs sample size, which is the cheaper mistake.
+        /// </remarks>
+        private string ExplainPredicateMismatch(ExperimentDef experiment, UserContext user)
+        {
+            string key = experiment.Audience.PredicateKey;
+            if (key == null) return null;
+
+            if (_predicates == null)
+            {
+                return "audience predicate '" + key + "' cannot be evaluated because no predicate " +
+                       "evaluator is wired up, and an unevaluable predicate excludes rather than admits";
+            }
+
+            return _predicates.Matches(key, user)
+                ? null
+                : "audience predicate '" + key + "' did not match";
         }
 
         private VariantAssignment ResolveForced(ExperimentConfig config, LayerDef layer, int layerBucket)
