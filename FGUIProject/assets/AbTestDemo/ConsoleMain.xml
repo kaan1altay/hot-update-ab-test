@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component size="1600,900">
+  <displayList>
+    <text id="n0_8sec" name="txtTitle" xy="33,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Title"/>
+    <component id="n1_8sec" name="chipSource" src="8sec4" fileName="StatusChip.xml" xy="366,32" group="n7_8sec" touchable="false"/>
+    <text id="n2_8sec" name="txtConfigVersion" xy="574,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Config Version"/>
+    <text id="n3_8sec" name="txtServer" xy="907,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Server"/>
+    <text id="n38_8sec" name="txtScenario" xy="1240,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Scenario"/>
+    <group id="n7_8sec" name="groupTopBar" xy="33,4" size="1532,90" advanced="true" layout="hz" colGap="8">
+      <relation target="" sidePair="center-center,top-top"/>
+    </group>
+    <component id="n8_8sec" name="containerDevice" src="8secb" fileName="containerDevice.xml" xy="40,110">
+      <relation target="" sidePair="height-height,middle-middle,left-left"/>
+    </component>
+    <component id="n6_8sec" name="bannerForced" src="8seca" fileName="ForcedBanner.xml" xy="17,823" touchable="false" controller="state,0">
+      <relation target="" sidePair="bottom-bottom"/>
+      <relation target="n8_8sec" sidePair="center-center"/>
+    </component>
+    <list id="n11_8sec" name="listLog" xy="443,696" size="1117,190" overflow="scroll" defaultItem="ui://pupdaecj8sec7" align="center">
+      <relation target="" sidePair="width-width,center-center,bottom-bottom"/>
+      <item controllers="type,1"/>
+      <item/>
+      <item/>
+      <item/>
+    </list>
+    <list id="n12_8sec" name="listMetrics" xy="450,110" size="1100,340" overflow="scroll" margin="10,0,0,0" defaultItem="ui://pupdaecj8sec5">
+      <relation target="" sidePair="width-width,right-right,top-top"/>
+      <item url="ui://pupdaecj8secc"/>
+      <item/>
+      <item/>
+      <item/>
+      <item/>
+    </list>
+    <component id="n13_8sec" name="btnServerToggle" src="8sec2" fileName="ToggleButton.xml" xy="429,457" size="221,50" group="n31_8sec" controller="state,0,color,0">
+      <property target="titleOn" propertyId="0" value="Stop Server"/>
+      <property target="titleOff" propertyId="0" value="Start server"/>
+    </component>
+    <component id="n32_8sec" name="btnRefresh" src="8sec1" fileName="ActionButton.xml" xy="659,457" size="221,50" group="n31_8sec">
+      <Button title="Refresh config"/>
+    </component>
+    <component id="n15_8sec" name="btnScenarioNormal" src="8sec1" fileName="ActionButton.xml" xy="889,457" size="221,50" group="n31_8sec">
+      <Button title="Scenario: normal"/>
+    </component>
+    <component id="n16_8sec" name="btnScenarioWeights" src="8sec1" fileName="ActionButton.xml" xy="1119,457" size="221,50" group="n31_8sec">
+      <Button title="Scenario: weights 90/10"/>
+    </component>
+    <component id="n17_8sec" name="btnScenarioPause" src="8sec1" fileName="ActionButton.xml" xy="1349,457" size="221,50" group="n31_8sec">
+      <Button title="Scenario: pause exp"/>
+    </component>
+    <component id="n21_8sec" name="btnScenarioKill" src="8sec1" fileName="ActionButton.xml" xy="429,517" size="221,50" group="n31_8sec">
+      <Button title="Scenario: kill switch"/>
+    </component>
+    <component id="n22_8sec" name="btnScenarioMalformed" src="8sec1" fileName="ActionButton.xml" xy="659,517" size="221,50" group="n31_8sec">
+      <Button title="Scenario: malformed JSON"/>
+    </component>
+    <component id="n23_8sec" name="btnScenarioBadSchema" src="8sec1" fileName="ActionButton.xml" xy="889,517" size="221,50" group="n31_8sec">
+      <Button title="Scenario: bad schema"/>
+    </component>
+    <component id="n19_8sec" name="btnScenarioOffline" src="8sec1" fileName="ActionButton.xml" xy="1119,517" size="221,50" group="n31_8sec">
+      <Button title="Scenario: offline"/>
+    </component>
+    <component id="n25_8sec" name="btnSimulate" src="8sec1" fileName="ActionButton.xml" xy="1349,517" size="221,50" group="n31_8sec">
+      <Button title="Simulate 5000 users"/>
+    </component>
+    <component id="n20_8sec" name="btnForceVariant" src="8sec1" fileName="ActionButton.xml" xy="429,577" size="221,50" group="n31_8sec">
+      <Button title="Force variant"/>
+    </component>
+    <component id="n27_8sec" name="btnClearForce" src="8sec1" fileName="ActionButton.xml" xy="659,577" size="221,50" group="n31_8sec">
+      <Button title="Clear override"/>
+    </component>
+    <component id="n28_8sec" name="btnInjectSkew" src="8sec2" fileName="ToggleButton.xml" xy="889,577" size="221,50" group="n31_8sec" controller="color,1">
+      <property target="titleOn" propertyId="0" value="Fix: bucketing skew"/>
+      <property target="titleOff" propertyId="0" value="Break: bucketing skew"/>
+    </component>
+    <component id="n29_8sec" name="btnSkipExposure" src="8sec2" fileName="ToggleButton.xml" xy="1119,577" size="221,50" group="n31_8sec" controller="color,1">
+      <property target="titleOn" propertyId="0" value="Fix: skip exposure"/>
+      <property target="titleOff" propertyId="0" value="Break: skip exposure"/>
+    </component>
+    <component id="n24_8sec" name="btnReloadPatches" src="8sec1" fileName="ActionButton.xml" xy="1349,577" size="221,50" group="n31_8sec">
+      <Button title="Reload Lua patches"/>
+    </component>
+    <component id="n26_8sec" name="btnDumpState" src="8sec1" fileName="ActionButton.xml" xy="429,637" size="221,50" group="n31_8sec">
+      <Button title="Dump state"/>
+    </component>
+    <component id="n30_8sec" name="btnClearState" src="8sec1" fileName="ActionButton.xml" xy="659,637" size="221,50" group="n31_8sec">
+      <Button title="Clear saved state"/>
+    </component>
+    <group id="n31_8sec" name="groupButtons" xy="429,457" size="1141,230" advanced="true">
+      <relation target="n12_8sec" sidePair="center-center,top-bottom"/>
+    </group>
+  </displayList>
+</component>

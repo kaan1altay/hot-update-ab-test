@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<packageDescription id="pupdaecj">
+  <resources>
+    <component id="8sec1" name="ActionButton.xml" path="/"/>
+    <component id="8sec2" name="ToggleButton.xml" path="/"/>
+    <component id="8sec3" name="SrmLight.xml" path="/"/>
+    <component id="8sec4" name="StatusChip.xml" path="/"/>
+    <component id="8sec5" name="MetricsRow.xml" path="/" exported="true"/>
+    <component id="8sec6" name="barShare.xml" path="/"/>
+    <component id="8sec7" name="LogRow.xml" path="/" exported="true"/>
+    <component id="8sec8" name="ShopScreen.xml" path="/" exported="true"/>
+    <component id="8sec9" name="ConsoleMain.xml" path="/" exported="true"/>
+    <component id="8seca" name="ForcedBanner.xml" path="/"/>
+    <component id="8secb" name="containerDevice.xml" path="/"/>
+    <component id="8secc" name="MetricsHeader.xml" path="/" exported="true"/>
+  </resources>
+  <publish name=""/>
+</packageDescription>

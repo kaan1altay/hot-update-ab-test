@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component size="50,10" extention="ProgressBar">
+  <controller name="state" exported="true" pages="4,unknown,0,green,1,yellow,2,red" selected="0"/>
+  <displayList>
+    <graph id="n0_8sec" name="n0" xy="0,0" size="50,10" touchable="false" type="rect" lineSize="0" lineColor="#ffa0a0a0" fillColor="#fff0f0f0">
+      <relation target="" sidePair="width-width,height-height"/>
+    </graph>
+    <graph id="n1_8sec" name="bar" xy="0,3" size="50,3" touchable="false" type="rect" lineSize="0" fillColor="#ff666666">
+      <gearColor controller="state" pages="4,0,2" values="#666666|#00cc00|#ff0000" default="#ffcc00"/>
+      <relation target="" sidePair="width-width,height-height%,middle-middle"/>
+    </graph>
+    <text id="n2_8sec" name="title" xy="0,-10" size="50,24" fontSize="16" align="center" vAlign="middle" ubb="true" autoSize="none" bold="true" singleLine="true" text="">
+      <relation target="" sidePair="width-width,height-height%,middle-middle"/>
+    </text>
+  </displayList>
+  <ProgressBar/>
+</component>
