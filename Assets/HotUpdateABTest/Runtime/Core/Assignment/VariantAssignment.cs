@@ -48,12 +48,12 @@ namespace HotUpdateABTest.Core.Assignment
     /// them here means nothing downstream has to recompute a hash to explain itself.
     /// </para>
     /// <para>
-    /// An <see cref="Assignment"/> is not an exposure. Producing one is free and silent, and calling code
+    /// An <see cref="VariantAssignment"/> is not an exposure. Producing one is free and silent, and calling code
     /// may do it speculatively - to warm a screen, to render a diagnostic, to simulate a population.
     /// Nothing is logged until somebody actually sees the treated surface.
     /// </para>
     /// </remarks>
-    public sealed class Assignment
+    public sealed class VariantAssignment
     {
         /// <summary>The layer this answer is about. Always set.</summary>
         public string LayerId { get; }
@@ -99,7 +99,7 @@ namespace HotUpdateABTest.Core.Assignment
         /// <summary>Shortcut for the variant id, or null.</summary>
         public string VariantId => Variant?.Id;
 
-        private Assignment(
+        private VariantAssignment(
             string layerId,
             ExperimentDef experiment,
             VariantDef variant,
@@ -122,7 +122,7 @@ namespace HotUpdateABTest.Core.Assignment
         }
 
         /// <summary>The user is in an arm.</summary>
-        public static Assignment Assigned(
+        public static VariantAssignment Assigned(
             string layerId,
             ExperimentDef experiment,
             VariantDef variant,
@@ -131,19 +131,19 @@ namespace HotUpdateABTest.Core.Assignment
             int variantBucket,
             string configVersion)
         {
-            return new Assignment(layerId, experiment, variant, source, NoAssignmentReason.None, null,
+            return new VariantAssignment(layerId, experiment, variant, source, NoAssignmentReason.None, null,
                 layerBucket, variantBucket, configVersion);
         }
 
         /// <summary>The user is in no experiment in this layer.</summary>
-        public static Assignment NotAssigned(
+        public static VariantAssignment NotAssigned(
             string layerId,
             NoAssignmentReason reason,
             string explanation,
             int layerBucket,
             string configVersion)
         {
-            return new Assignment(layerId, null, null, AssignmentSource.Bucketed, reason, explanation,
+            return new VariantAssignment(layerId, null, null, AssignmentSource.Bucketed, reason, explanation,
                 layerBucket, -1, configVersion);
         }
 

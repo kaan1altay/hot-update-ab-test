@@ -99,14 +99,14 @@ namespace HotUpdateABTest.Core.Assignment
         }
 
         /// <summary>Resolves one layer for one user.</summary>
-        public Assignment Resolve(ConfigSnapshot snapshot, UserContext user, string layerId)
+        public VariantAssignment Resolve(ConfigSnapshot snapshot, UserContext user, string layerId)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
             return Resolve(snapshot.Config, user, layerId);
         }
 
         /// <summary>Resolves one layer for one user against a specific config.</summary>
-        public Assignment Resolve(ExperimentConfig config, UserContext user, string layerId)
+        public VariantAssignment Resolve(ExperimentConfig config, UserContext user, string layerId)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             if (user == null) throw new ArgumentNullException(nameof(user));
@@ -115,7 +115,7 @@ namespace HotUpdateABTest.Core.Assignment
             var layer = config.FindLayer(layerId);
             if (layer == null)
             {
-                return Assignment.NotAssigned(layerId, NoAssignmentReason.UnknownLayer,
+                return VariantAssignment.NotAssigned(layerId, NoAssignmentReason.UnknownLayer,
                     "the configuration declares no layer '" + layerId + "'", -1, config.ConfigVersion);
             }
 
@@ -132,7 +132,7 @@ namespace HotUpdateABTest.Core.Assignment
             var experiment = LayerAllocator.AllocateAt(config, layer, layerBucket);
             if (experiment == null)
             {
-                return Assignment.NotAssigned(layerId, NoAssignmentReason.OutsideAllocation,
+                return VariantAssignment.NotAssigned(layerId, NoAssignmentReason.OutsideAllocation,
                     "bucket " + layerBucket + " is not claimed by any running experiment in this layer",
                     layerBucket, config.ConfigVersion);
             }
@@ -147,7 +147,7 @@ namespace HotUpdateABTest.Core.Assignment
             string mismatch = experiment.Audience.ExplainMismatch(user);
             if (mismatch != null)
             {
-                return Assignment.NotAssigned(layerId, NoAssignmentReason.AudienceExcluded,
+                return VariantAssignment.NotAssigned(layerId, NoAssignmentReason.AudienceExcluded,
                     "experiment '" + experiment.Id + "' excludes this user: " + mismatch,
                     layerBucket, config.ConfigVersion);
             }
@@ -158,22 +158,22 @@ namespace HotUpdateABTest.Core.Assignment
 
             if (variant == null)
             {
-                return Assignment.NotAssigned(layerId, NoAssignmentReason.NoTrafficInVariants,
+                return VariantAssignment.NotAssigned(layerId, NoAssignmentReason.NoTrafficInVariants,
                     "experiment '" + experiment.Id + "' is running but every variant has weight 0",
                     layerBucket, config.ConfigVersion);
             }
 
-            return Assignment.Assigned(layerId, experiment, variant, AssignmentSource.Bucketed,
+            return VariantAssignment.Assigned(layerId, experiment, variant, AssignmentSource.Bucketed,
                 layerBucket, variantBucket, config.ConfigVersion);
         }
 
         /// <summary>Resolves every declared layer for one user.</summary>
-        public IReadOnlyList<Assignment> ResolveAll(ConfigSnapshot snapshot, UserContext user)
+        public IReadOnlyList<VariantAssignment> ResolveAll(ConfigSnapshot snapshot, UserContext user)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
 
             var config = snapshot.Config;
-            var results = new List<Assignment>(config.Layers.Count);
+            var results = new List<VariantAssignment>(config.Layers.Count);
 
             foreach (var layer in config.Layers) results.Add(Resolve(config, user, layer.Id));
             return results;
@@ -195,7 +195,7 @@ namespace HotUpdateABTest.Core.Assignment
         /// showing an arm they turned off.
         /// </para>
         /// </remarks>
-        public bool NotifyExposed(UserContext user, Assignment assignment, DateTime nowUtc)
+        public bool NotifyExposed(UserContext user, VariantAssignment assignment, DateTime nowUtc)
         {
             if (user == null) throw new ArgumentNullException(nameof(user));
             if (assignment == null) throw new ArgumentNullException(nameof(assignment));
@@ -218,7 +218,7 @@ namespace HotUpdateABTest.Core.Assignment
             return true;
         }
 
-        private Assignment ResolveForced(ExperimentConfig config, LayerDef layer, int layerBucket)
+        private VariantAssignment ResolveForced(ExperimentConfig config, LayerDef layer, int layerBucket)
         {
             if (!_overrides.Any) return null;
 
@@ -238,14 +238,14 @@ namespace HotUpdateABTest.Core.Assignment
                     continue;
                 }
 
-                return Assignment.Assigned(layer.Id, experiment, variant, AssignmentSource.Forced,
+                return VariantAssignment.Assigned(layer.Id, experiment, variant, AssignmentSource.Forced,
                     layerBucket, -1, config.ConfigVersion);
             }
 
             return null;
         }
 
-        private Assignment ResolvePinned(
+        private VariantAssignment ResolvePinned(
             ExperimentConfig config, ExperimentDef experiment, UserContext user, int layerBucket)
         {
             if (_store == null) return null;
@@ -264,7 +264,7 @@ namespace HotUpdateABTest.Core.Assignment
                 return null;
             }
 
-            return Assignment.Assigned(experiment.LayerId, experiment, variant, AssignmentSource.Pinned,
+            return VariantAssignment.Assigned(experiment.LayerId, experiment, variant, AssignmentSource.Pinned,
                 layerBucket, -1, config.ConfigVersion);
         }
     }

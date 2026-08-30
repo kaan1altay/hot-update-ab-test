@@ -159,7 +159,7 @@ namespace HotUpdateABTest.Tests.Core
         }
 
         /// <summary>Returns a description of what is wrong with an assignment, or null when it is coherent.</summary>
-        private static string Inspect(ConfigSnapshot snapshot, Assignment assignment)
+        private static string Inspect(ConfigSnapshot snapshot, VariantAssignment assignment)
         {
             var config = snapshot.Config;
 
