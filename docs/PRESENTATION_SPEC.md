@@ -18,7 +18,7 @@ Pinned by `PresentationSpecReaderTests` (21 tests). If anything below changes, t
 | --- | --- | --- | --- | --- |
 | `layout` | string | `"list"`, `"grid"` | `offer_layout` | `list` |
 | `priceStyle` | string | `"plain"`, `"discounted"` | `pricing_cta` | `plain` |
-| `badgeText` | string or nil | any text, **≤ 16 chars**; nil or `""` means no badge | `pricing_cta` | none |
+| `badgeText` | string or nil | any text, **≤ 10 chars**; nil or `""` means no badge | `pricing_cta` | none |
 | `ctaText` | string | any text, **1–24 chars**, may not be empty | `pricing_cta` | `"Buy"` |
 
 A behavior returns only the fields it wants to change. Anything it omits keeps its baseline value.
@@ -54,11 +54,17 @@ price, the screen renders `plain` and logs; you do not need to author a third st
 
 ### `badgeText` — one badge, present or absent
 
-A small badge somewhere on the offer item, showing up to 16 characters (`"SALE"`, `"-40%"`, `"BEST VALUE"`).
-It must be hideable, because most variants will not set one. Suggested: a controller `badge` with pages
-`hidden` and `shown`, or just toggle visibility.
+A small badge on the offer item, showing up to **10 characters** (`"SALE"`, `"-40%"`, `"BEST VALUE"` — which
+is exactly ten). It must be hideable, because most variants will not set one. Authored as a controller
+`badge` with pages `none` and `shown`.
 
 There is **one** badge appearance, not a set of badge types. The text varies; the look does not.
+
+> **The limit was 16 and came down to 10 during authoring**, because sixteen characters cannot sit beside
+> the offer name on a 335-wide card at a legible size. That is the reject-rather-than-truncate rule working
+> as intended: whatever the constant says is *guaranteed* to arrive on screen, so it has to be a length the
+> card can hold. The fix is to lower the constant, never to clip at render time — clipping would produce a
+> screen that looks deliberate and reads as nonsense, and the patch author would never find out.
 
 ### `ctaText` — the button label
 

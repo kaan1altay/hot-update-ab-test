@@ -25,8 +25,10 @@ Every lookup goes through `FairyBinder`, which logs one line naming the componen
 then returns null. Nothing throws. A screen missing half its children renders the half it has.
 
 **Controllers are selected by page name, never by index.** This matters more than it looks: `barShare`
-declares its pages as `4,unknown,0,green,1,yellow,2,red`, so the page whose *id* is `4` sits at *index* `0`.
-Anything indexing those positionally would silently pick the wrong colour.
+declares its pages as `4,unknown,0,healthy,1,warn,2,alarm`, so the page whose *id* is `4` sits at *index*
+`0`. Anything indexing those positionally would silently pick the wrong colour — and that mapping has
+already been re-authored once during this slice, which is exactly the change positional indexing would
+have swallowed.
 
 ---
 
@@ -108,9 +110,14 @@ control needs to tell "the server said so" from "we cannot reach the server".
 
 ### `barShare` — 50 × 10, ProgressBar
 
-Controller `state`, pages `unknown` / `green` / `yellow` / `red`, plus a `title` text showing the
-percentage. Used for the funnel rate: green above 90%, yellow above 50%, red below, `unknown` with no
-assignments yet.
+Controller `state`, pages `unknown` / `healthy` / `warn` / `alarm`, plus a `title` text showing the
+percentage. Used for the assignment-to-exposure funnel rate: `healthy` at 90% or above, `warn` at 50% or
+above, `alarm` below, `unknown` with no assignments yet.
+
+Deliberately the same four page names as `SrmLight`, so a reader scanning a row does not have to learn two
+colour languages. Note the asymmetry that follows: `warn` is reachable on the bar but never on the light. A
+funnel between a half and nine tenths is genuinely a middle state; a sample ratio is either plausible or it
+is not.
 
 ### `ForcedBanner` — 420 × 34, Label
 
@@ -138,35 +145,93 @@ A framed rectangle standing in for a phone. `ShopScreen` is added as its child a
 
 ### `ShopScreen` — 375 × 667, exported
 
-**Currently empty.** Its interior is authored against `docs/PRESENTATION_SPEC.md` and is not drawn yet, so
-the demo builds the shop interior in code and adds it into this container. When the authored children
-appear, `ShopScreenView` finds them by name and uses them instead — the code already looks first and falls
-back second, so no change is needed to switch over.
+The game surface, inside `containerDevice`.
 
-Names the binder looks for, once they exist:
-
-| Child | Type | Purpose |
+| Child | Type | Bound to |
 | --- | --- | --- |
-| controller `layout` | pages `list` / `grid` | `PresentationSpec.Layout` |
-| `listOffers` | list | The offers |
-| offer item: controller `priceStyle` | pages `plain` / `discounted` | `PresentationSpec.PriceStyle` |
-| offer item: `txtPrice`, `txtOriginalPrice` | text | Current and struck-through original |
-| offer item: `badge` + `txtBadge` | component + text | `PresentationSpec.BadgeText`, hidden when absent |
+| `txtShopTitle` | text | Static |
+| `listOffers` | list, non-virtual, scroll | One `OfferCard` per offer in the catalogue |
 | `btnCta` | Button | `PresentationSpec.CtaText` |
+| `txtSpec` | text | The applied spec, plus a rejection marker — see below |
+
+**`txtSpec` is a debug strip, and it is load-bearing for the recordings.** It shows
+`PresentationSpec.ToString()` so every beat is readable in a still frame; without it a viewer sees the shop
+change and has to guess which of the two experiments moved. When a spec is rejected it also carries a short
+token — `[FALLBACK: unknown field]`, `[FALLBACK: text too long]`, `[FALLBACK: bad enum value]` — because a
+rejected spec renders the baseline, and the baseline is visually identical to a working control variant. The
+full validation sentence goes to the log, where there is room for it.
+
+### `OfferCard` — 335 × 96 (list) / 163 × 190 (grid), exported
+
+`listOffers`'s default item.
+
+| Child | Type | Bound to |
+| --- | --- | --- |
+| `imgIcon` | loader | Static art |
+| `txtName` | text | `Offer.Title` |
+| `txtPrice` | text | `Offer.PriceText` |
+| `txtOriginal` | text, **auto-sizing** | `Offer.OriginalPriceText` |
+| `graphStrike` | graph | The strike-through line, **sized in code** |
+| `imgBadgeBg`, `txtBadge` | graph + text | `PresentationSpec.BadgeText` |
+| `graphBg` | graph | **Decoration, not bound** — see below |
+
+Three controllers, deliberately orthogonal: 2 + 2 + 2 pages rather than eight drawn arrangements.
+
+| Controller | Pages | Driven by |
+| --- | --- | --- |
+| `layout` | `list` / `grid` | `PresentationSpec.Layout` |
+| `price` | `plain` / `discounted` | `PresentationSpec.PriceStyle`, **and** whether the offer has an original price |
+| `badge` | `none` / `shown` | `PresentationSpec.HasBadge`, so empty string and null both select `none` |
+
+The first two use the spec's own strings as page names, so `OfferLayout` and `PriceStyle` map onto pages
+with no translation table — one fewer place for the package and the code to drift.
+
+**`graphBg` is decoration and nothing binds to it.** FairyGUI cannot gear a component root's size, so the
+card gets a visible background at both sizes by having a child graphic geared across the layout pages
+instead. The code still sets the root's size itself, for the same underlying reason. It is listed here so it
+does not read as a stray.
+
+**Three things the code does that a controller cannot.** The card's own size, since gears apply to children
+and not the root. The list's arrangement — `SingleColumn` for `list`, `FlowHorizontal` with a 9px gap for
+`grid`, chosen so `163 + 9 + 163 = 335` and both arrangements fill the same width. And `graphStrike`'s
+geometry: `txtOriginal.text` is written first, then the line takes its width and x and sits at the text's
+vertical middle. `txtOriginal` is the one auto-sizing text in the card for exactly that reason — reading its
+width before the assignment would measure the previous offer's price.
+
+**Text limits are load-bearing.** `MaxCtaLength` is 24 and `MaxBadgeLength` is 10. Because the reader
+rejects rather than truncates, text at exactly those lengths is *guaranteed* to arrive, so the constants are
+a statement about what the card can hold at a legible size. Sixteen was tried for the badge and does not fit
+beside the offer name on a 335-wide card; `"BEST VALUE"` is exactly ten.
 
 ---
 
 ## Fallback
 
 The demo runs with **no package at all**. `DemoUiFactory` builds the entire console — top bar, device
-frame, metrics table, buttons, log — from `GComponent`, `GTextField`, `GButton` and `GGraph` at the same
-1600 × 900 layout and the same child names.
+frame, metrics table, buttons, log, shop screen and offer cards — from `GComponent`, `GTextField`,
+`GButton` and `GGraph` at the same 1600 × 900 layout and the same child names, declaring the same
+controllers and the same page names.
+
+The fallback offer card has no gears, so it listens to its own `layout` controller and repositions its
+children in response. That keeps `ShopScreenView` identical for both paths: it selects a page and nothing
+else.
 
 This is not a courtesy. It is what makes the demo testable headless: the PlayMode suite runs both paths and
 asserts the same behaviour, so a broken binding shows up as a test failure rather than as an empty screen
 somebody notices later. It is also what let this slice be built while the package was still being drawn.
 
 `UsingFallbackUi` is public and shown in the log on startup, so it is never ambiguous which path is running.
+
+## Boot validation
+
+`UiValidator` walks the whole bound tree once at startup, checks it against `UiContract` — the same list the
+package tests use and the fallback is built against — and reports **every** missing name in one message
+grouped by component. On a healthy run the log reads `UI binding validated: 75 names, all present.`
+
+Reported at error level, deliberately: a missing name means a dead control that looks like a working one,
+and logging it as a warning would let a stale package ship. It also means the PlayMode suite fails when the
+package and the code disagree, which is how the one real drift during development was caught — a
+`.bytes` published six minutes before the `.xml` that changed it.
 
 **Loading is a candidate list, first hit wins:** `Assets/FairyGUI-Packages/AbTestDemo` (Editor, via
 `AssetDatabase`), then `AbTestDemo` and `UI/AbTestDemo` under `Resources`. `UIPackage.AddPackage` throws

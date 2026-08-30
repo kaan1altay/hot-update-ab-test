@@ -1,0 +1,22 @@
+{
+    "name": "HotUpdateABTest.Editor",
+    "rootNamespace": "HotUpdateABTest.EditorTools",
+    "references": [
+        "HotUpdateABTest.Core",
+        "HotUpdateABTest.Runtime",
+        "HotUpdateABTest.Transport",
+        "HotUpdateABTest.Demo",
+        "FairyGUI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

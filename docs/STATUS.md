@@ -3,8 +3,8 @@
 Engineering log for `hot-update-ab-test`. Updated at the end of every slice, so the numbers here are
 checkable rather than claimed.
 
-**Slice 5 of 6 complete.** The demo: a local config server that can misbehave on demand, the LiveOps
-console bound to the authored FairyGUI package, and the action-pair audit.
+**Slice 6 of 6 complete.** The authored `ShopScreen` and `OfferCard` bound, boot validation of the whole
+binding, the demo script, and the README.
 
 ---
 
@@ -77,12 +77,12 @@ Last run 2026-08-30, all three suites green.
 
 | Suite | Tests | Result |
 | --- | --- | --- |
-| `dotnet test` (engine-free core) | 224 | 224 passed, ~11 s |
-| Unity EditMode batchmode | 304 | 304 passed |
-| Unity PlayMode batchmode | 7 | 7 passed |
+| `dotnet test` (engine-free core) | 234 | 234 passed, ~12 s |
+| Unity EditMode batchmode | 315 | 315 passed, 0 skipped |
+| Unity PlayMode batchmode | 10 | 10 passed |
 
-EditMode is a superset of the core suite: the same 224 tests plus 80 that need the engine, the Lua VM or a
-socket. The soak accounts for most of the core suite's eleven seconds; everything else is about one.
+EditMode is a superset of the core suite: the same 234 tests plus 81 that need the engine, the Lua VM or a
+socket. The soak accounts for most of the core suite's twelve seconds; everything else is about one.
 
 Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above to run the UI suite.
 
@@ -113,6 +113,8 @@ Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above 
 | `PackageBindingTests` | 6 | The real published package has every component, child and controller page the code binds to |
 | `DemoActionPairTests` | 17 | Every scenario recovering, the override cycling and clearing, both breakages breaking and recovering, the two being distinguishable, reset undoing everything, every button handled |
 | `DemoPlayModeTests` | 7 | The fallback declaring the same names as the package, the demo starting on whichever UI exists, buttons moving what is on screen, the table filling, the forced banner appearing and clearing |
+| `ShareAndSizingTests` | 10 | Observed and expected share, zero-weight arms excluded from the split, the text limits the card is drawn to hold, rejection tokens derived from issue codes |
+| `ExposureAtViewTimeTests` | 3 | A shop screen built and rendered 20× with the sink empty, `MarkExposed` producing exactly one, the live demo repainting without manufacturing exposures |
 
 ### Tests that demonstrate the failure mode rather than the success path
 
@@ -272,7 +274,42 @@ intermediate state invites "it is probably fine", and `Unknown` already covers t
 
 ---
 
-## Decisions made in this slice
+## Decisions made in the final slice
+
+**The whole binding is validated once at boot, not per use site.** Every `GetChild` returning null is a name
+mistyped or a publish forgotten, and the symptom is a dead control that looks like a working one. Stopping
+at the first failure finds one typo per run; checking at each use site finds them one interaction at a time.
+`UiValidator` collects all of them and reports one message, at error level so a stale package fails the
+PlayMode suite rather than shipping. `UiContract` is the single list behind the boot check, the package
+tests and the fallback — and the package tests call the same validator, because a test with its own copy of
+the matching logic can pass on a laxer rule than the thing it guards.
+
+**`barShare` shows observed share against expected**, titled `49.9% (exp 50.0%)`, not the funnel rate. It
+sits beside the ratio light and explains it: the light says the split is not plausible, the bars say which
+arm is over-represented and by how much. The funnel signal is not lost — it is read from the `assigned` and
+`exposed` columns side by side, which is also what distinguishes the two breakage modes, and the test that
+asserts that distinction reads the data directly. Value is set before title, because `GProgressBar.Update`
+rewrites the title from its `titleType` whenever the value changes.
+
+**`MaxBadgeLength` is 10, lowered from 16.** Because the reader rejects rather than truncates, whatever the
+constant says is guaranteed to arrive on screen, so it has to be a length the authored card can hold at a
+legible size. Sixteen does not fit beside the offer name on a 335-wide card. Lowering the constant is the
+honest fix; clipping at render time would be the dishonest one, and would quietly break the guarantee that
+makes the reject-rather-than-truncate rule worth having.
+
+**The rejection marker carries a class, not a sentence.** `[FALLBACK: unknown field]` on the spec strip,
+the full validation message in the log. A viewer of a recording needs to know which kind of thing went
+wrong and has no time to read prose off a still frame. The token comes from the machine-readable issue code
+rather than by matching message text, so improving a message cannot silently change what the strip says.
+
+**Prices stay in C#.** A patch channel is a remote code execution channel; letting it set what things cost
+would be an unforced error. `priceStyle = "discounted"` presents the catalogue's existing original price
+struck through, and a variant asking for it on an offer that has none gets `plain` rather than a
+struck-through blank.
+
+---
+
+## Decisions carried from Slice 5
 
 **The presentation spec is closed and finite.** Four fields, enumerated values, unknown keys rejected. The
 value sets are enumerated against what the FairyGUI package actually contains: accepting `layout =
@@ -342,17 +379,20 @@ buckets so any population is a four-bucket sum at read time. A test asserts the 
 
 ---
 
-## What is deliberately not here yet
+## What is deliberately not here
 
-| Slice | Contents |
-| --- | --- |
-| 6 | `ShopScreen`'s authored interior bound, README, media |
+All six slices are complete. What follows is deliberately absent, with reasons — nothing here is an
+oversight, and each one is a decision somebody could reasonably have made differently.
+
+**Not yet recorded.** `docs/DEMO_SCRIPT.md` is the shooting order with a still-frame tell for every beat;
+the GIFs themselves are not in the repository.
 
 Deferred with reasons:
 
-- **`FileAssignmentStore` and `FileConfigCache` still have no dedicated tests.** Thin adapters over covered
-  in-memory implementations; the behaviour worth testing — surviving a restart — belongs with the PlayMode
-  suite in Slice 5.
+- **`FileAssignmentStore` and `FileConfigCache` have no dedicated tests.** Thin adapters over in-memory
+  implementations that are thoroughly covered, and the demo wires the in-memory ones. The behaviour worth
+  testing in them — surviving a restart — needs a test that restarts, which the PlayMode suite cannot do.
+  Genuinely untested; said plainly rather than counted as covered.
 - **`ExposureLedger.ForgetSession` is O(live dedup keys).** Fine at demo scale and called once per simulated
   user, but it scans rather than indexing by session. Noted rather than built.
 - **The soak's `SweepEvery` is 500.** Cheap invariants run after every operation; the O(population) sweep
@@ -365,10 +405,9 @@ Deferred with reasons:
 - **Behaviors are re-invoked per render rather than memoised.** Purity means the result is cacheable by
   `(behaviorKey, context)`, which would matter for a screen rebuilding every frame. The demo rebuilds on
   config change and on click, so it is not worth the invalidation surface yet.
-- **`ShopScreen`'s interior is built in code**, because the authored component is still an empty container.
-  `ShopScreenView` probes for `listOffers`, a `layout` controller and `btnCta` first, so drawing them is all
-  it takes to switch over — no code change. Until then the struck-through original price is faked with
-  surrounding dashes, since a plain `GTextField` has no strikethrough.
+- **The offer catalogue is four fixed offers.** Varying the catalogue as well as the presentation would
+  make it impossible to say which change moved the numbers — which is the mistake the whole framework
+  exists to help somebody avoid.
 - **The config fetch runs on the main thread.** `ConfigService` documents an off-thread contract and the
   concurrency suite proves it holds, but the demo polls a localhost server every five seconds with a
   two-second timeout, so moving it to a worker would add a marshalling path for no observable gain. The
