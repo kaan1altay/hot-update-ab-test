@@ -112,3 +112,25 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# ---------------------------------------------------------------------------
+# hot-update-ab-test additions
+# ---------------------------------------------------------------------------
+
+# Unity test runner output (see docs/STATUS.md for the batchmode command)
+/[Tt]est[Rr]esults/
+
+# The engine-free core is compiled a second time as a plain .NET project so it
+# can run under `dotnet test` in CI without a Unity licence. Its build output is
+# ignored, but its project files are NOT: the rules above ignore Unity's
+# *generated* .csproj/.sln, and these hand-written ones must be committed for CI
+# to have anything to build.
+/dotnet/**/[Bb]in/
+/dotnet/**/[Oo]bj/
+!/dotnet/**/*.csproj
+!/dotnet/*.sln
+
+# Lua hot-update patches dropped in at runtime are demo scratch, not source.
+/[Aa]ssets/[Ll]ua/patches/*
+!/[Aa]ssets/[Ll]ua/patches/README.md
+!/[Aa]ssets/[Ll]ua/patches/*.meta

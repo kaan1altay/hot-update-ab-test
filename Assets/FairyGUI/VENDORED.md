@@ -15,8 +15,9 @@ Runtime only:
 
 Deliberately **not** vendored: `Assets/Editor` (the package/asset import tooling),
 `Assets/Examples` (~30 MB of demo art), `LuaSupport` and `UIProject` (the FairyGUI
-Editor source project). This repository binds red dots to FairyGUI objects; it does
-not need the upstream demo content.
+Editor source project). This repository renders one shop/offer screen plus a set of
+LiveOps tooling panels from its own authored package; it does not need the upstream
+demo content.
 
 ## Local modifications
 
@@ -25,6 +26,8 @@ None. The upstream `FairyGUI.asmdef` is used as-is; it references
 
 ## Note on the UI package
 
-The `.fui` / `_fui.bytes` UI package that Slice 2 will bind to is authored in the
+The `.fui` / `_fui.bytes` UI package the demo binds to is authored by hand in the
 FairyGUI Editor (a separate desktop application) and is not part of this dependency.
-`docs/` will carry the package spec.
+`docs/PACKAGE_SPEC.md` is the authoring contract: exact component names, child names
+and sizes. The demo also ships a programmatic fallback UI built in code, so it runs
+and can be tested headless whether or not the authored package is present.
