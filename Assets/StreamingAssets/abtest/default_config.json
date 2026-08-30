@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "Shipped defaults: the floor of the configuration fallback ladder.",
+    "",
+    "Used on a cold start when nothing has ever been cached and the server cannot be reached.",
+    "Every experiment the build knows about is declared here, and every one of them is 'stopped',",
+    "so this payload resolves to the control experience for everybody. Declaring them rather than",
+    "shipping an empty list is the point: a screen that asks about an experiment gets a definite",
+    "'not running' instead of a blank, and the demo's metrics panel has rows to draw before the",
+    "first successful fetch.",
+    "",
+    "Keep this in step with the server config's layers and variant ids. ShippedDefaultsTests parses",
+    "and validates this exact file, so a typo here fails the build's test suite rather than only",
+    "showing up on an offline first launch."
+  ],
+
+  "schemaVersion": 1,
+  "configVersion": "shipped-defaults",
+
+  "layers": [
+    { "id": "offer_layout", "salt": "offer_layout.2026q3" },
+    { "id": "pricing_cta", "salt": "pricing_cta.2026q3" }
+  ],
+
+  "experiments": [
+    {
+      "id": "exp_offer_layout",
+      "layer": "offer_layout",
+      "status": "stopped",
+      "salt": "exp_offer_layout.v1",
+      "allocation": { "from": 0, "to": 10000 },
+      "stickiness": "sticky_after_exposure",
+      "variants": [
+        { "id": "control", "weight": 5000, "behavior": "shop.offer_layout.control" },
+        { "id": "grid_v2", "weight": 5000, "behavior": "shop.offer_layout.grid_v2" }
+      ]
+    },
+    {
+      "id": "exp_pricing_cta",
+      "layer": "pricing_cta",
+      "status": "stopped",
+      "salt": "exp_pricing_cta.v1",
+      "allocation": { "from": 0, "to": 10000 },
+      "stickiness": "sticky_after_exposure",
+      "variants": [
+        { "id": "control", "weight": 5000, "behavior": "shop.pricing_cta.control" },
+        { "id": "urgency", "weight": 5000, "behavior": "shop.pricing_cta.urgency" }
+      ]
+    }
+  ]
+}
