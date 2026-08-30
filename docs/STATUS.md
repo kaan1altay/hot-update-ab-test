@@ -1,14 +1,10 @@
-| `dotnet test` (engine-free core) | 224 | 224 passed, ~16 s |
-| Unity EditMode batchmode | 269 | 269 passed |
-
-The Unity run is a superset: the same 224 core tests plus 45 that need the engine and the Lua VM. The soak
-accounts for most of the 16 seconds; the rest of the core suite is about one second.# Status
+# Status
 
 Engineering log for `hot-update-ab-test`. Updated at the end of every slice, so the numbers here are
 checkable rather than claimed.
 
-**Slice 4 of 6 complete.** The Lua seam: a sandboxed VM, a closed presentation vocabulary, hot-updatable
-variant behavior and audience predicates.
+**Slice 5 of 6 complete.** The demo: a local config server that can misbehave on demand, the LiveOps
+console bound to the authored FairyGUI package, and the action-pair audit.
 
 ---
 
@@ -30,8 +26,17 @@ variant behavior and audience predicates.
 | --- | --- | --- | --- |
 | `HotUpdateABTest.Core` | `Assets/HotUpdateABTest/Runtime/Core/` | Newtonsoft.Json | `noEngineReferences: true`. The decision core. |
 | `HotUpdateABTest.Runtime` | `Assets/HotUpdateABTest/Runtime/Unity/` | Core, XLua | The engine-facing half: file cache, file-backed pins, StreamingAssets. |
-| `HotUpdateABTest.Tests.EditMode` | `Assets/HotUpdateABTest/Tests/EditMode/` | Core, Runtime, XLua, TestRunner | Editor-only, `UNITY_INCLUDE_TESTS`. |
+| `HotUpdateABTest.Transport` | `Assets/HotUpdateABTest/Transport/` | Core | The local HTTP server. Demo tooling. |
+| `HotUpdateABTest.Demo` | `Assets/HotUpdateABTest/Demo/` | Core, Runtime, Transport, FairyGUI, XLua | The console and the shop screen. Demo tooling. |
+| `HotUpdateABTest.Tests.EditMode` | `Assets/HotUpdateABTest/Tests/EditMode/` | all of the above, TestRunner | Editor-only, `UNITY_INCLUDE_TESTS`. |
+| `HotUpdateABTest.Tests.PlayMode` | `Assets/HotUpdateABTest/Tests/PlayMode/` | all of the above, TestRunner | Needs a running stage. |
 | `HotUpdateABTest.Core.Tests` | `dotnet/HotUpdateABTest.Core.Tests/` | Core (linked), NUnit | Not a Unity assembly. See below. |
+
+Transport and Demo are **runtime** assemblies rather than Editor-only ones: a MonoBehaviour in an
+Editor-only assembly cannot be added to a GameObject, so the demo simply would not run. What keeps them out
+of a real build is folder membership — a game adopting this framework takes `Runtime/` and leaves
+`Transport/` and `Demo/` behind — not an assembly definition platform filter. Said plainly rather than
+implying a guarantee the build does not make.
 
 ### Why the core is compiled twice
 
@@ -68,15 +73,18 @@ dotnet test dotnet/HotUpdateABTest.sln
 
 ## Test results
 
-Last run 2026-08-30, both suites green.
+Last run 2026-08-30, all three suites green.
 
 | Suite | Tests | Result |
 | --- | --- | --- |
-| `dotnet test` (engine-free core) | 195 | 195 passed, ~13 s |
-| Unity EditMode batchmode | 200 | 200 passed |
+| `dotnet test` (engine-free core) | 224 | 224 passed, ~11 s |
+| Unity EditMode batchmode | 304 | 304 passed |
+| Unity PlayMode batchmode | 7 | 7 passed |
 
-The Unity run is a superset: the same 195 core tests plus 5 that need the engine. The soak accounts for
-almost all of the 13 seconds; the rest of the suite is about one second.
+EditMode is a superset of the core suite: the same 224 tests plus 80 that need the engine, the Lua VM or a
+socket. The soak accounts for most of the core suite's eleven seconds; everything else is about one.
+
+Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above to run the UI suite.
 
 | Area | Tests | What is covered |
 | --- | --- | --- |
@@ -101,6 +109,10 @@ almost all of the 13 seconds; the rest of the suite is about one second.
 | `LuaVariantHostTests` | 22 | Baseline behaviors, purity over 50 calls, one-broken-patch isolation, staged registration, reload idempotence, deletion reverting, a patch adding a variant, every spec rejection path, predicates failing closed, disposal |
 | `LuaCannotReachTelemetryTests` | 6 | A patch attacking the sink through the context, the C# bridge and enumeration; suppression and duplication attempts; the context proven to carry values only |
 | `LuaEnvironmentSmokeTests` | 5 | Native VM under batchmode, values both ways, `LuaFunction` handles, `LuaException`, custom `require` loader |
+| `LocalConfigServerTests` | 12 | Every scenario producing the fault it advertises, version bumping, the socketless fallback; over a real socket: binding without elevation, port scanning, fetch, 503-as-unreachable, stop and restart |
+| `PackageBindingTests` | 6 | The real published package has every component, child and controller page the code binds to |
+| `DemoActionPairTests` | 17 | Every scenario recovering, the override cycling and clearing, both breakages breaking and recovering, the two being distinguishable, reset undoing everything, every button handled |
+| `DemoPlayModeTests` | 7 | The fallback declaring the same names as the package, the demo starting on whichever UI exists, buttons moving what is on screen, the table filling, the forced banner appearing and clearing |
 
 ### Tests that demonstrate the failure mode rather than the success path
 
@@ -174,16 +186,41 @@ scalar. A test walks the context asserting every value is a string, number or bo
 Enforced by construction rather than convention: with no clock and no random source there is nothing to be
 impure with. `CallingABehaviorTwiceWithTheSameContextGivesAnIdenticalSpec` calls fifty times and compares.
 
-### Action pairs
+---
 
-| Enters state | Returns to prior state |
-| --- | --- |
-| Drop a patch file, reload | Delete the file, reload — the variant returns to its baseline definition |
-| Reload repeatedly | No-op; reload rebuilds from scratch rather than diffing, so it cannot double-register |
-| A patch overrides a baseline variant | Delete the patch, reload |
-| A broken patch is skipped | Fix or remove it; the log-once key clears when a reload has no failures |
+## The action-pair audit
 
-Both directions are tested.
+For every control that puts the demo into a state, the control that takes it back out. Carried over from
+`ui-reddot-system`, where two of the three bugs hand play-testing found were of the "nothing makes this
+false again" class — a toggle that could be set but never cleared. That is the failure mode manual testing
+reliably catches, so it is worth catching first.
+
+| Enters state | Returns to prior state | Asserted by |
+| --- | --- | --- |
+| `btnScenarioMalformed` | `btnScenarioNormal` | `ScenarioMalformedThenNormalRecovers` |
+| `btnScenarioBadSchema` | `btnScenarioNormal` | `ScenarioBadSchemaThenNormalRecovers` |
+| `btnScenarioOffline` | `btnScenarioNormal` | `OfflineThenNormalRecovers` |
+| `btnScenarioKill` | `btnScenarioNormal` | `TheKillSwitchStopsEveryExperimentAndNormalStartsThemAgain` |
+| `btnScenarioPause` | `btnScenarioNormal` | `PauseThenNormalRestoresOnlyThePausedExperiment` |
+| `btnScenarioWeights` | `btnScenarioNormal` — **asymmetric, see below** | `RestoringTheWeightsDoesNotRestoreTheArmsOfUsersAlreadyExposed` |
+| `btnForceVariant` | `btnClearForce`, or cycling past the last arm | `ForcingAVariantThenClearingItRestoresBucketing`, `CyclingTheOverridePastTheLastArmClearsIt` |
+| `btnInjectSkew` | press again | `BucketingSkewBreaksTheRatioAndFixingItRecovers` |
+| `btnSkipExposure` | press again | `SkipExposureBreaksTheRatioAndFixingItRecovers` |
+| `btnServerToggle` (stop) | press again — the port is released and reclaimed | `TheServerCanBeStoppedAndStartedAgain` |
+| `btnSimulate` | `btnClearState` | `ResetUndoesEveryStateAtOnce` |
+| Drop a Lua patch, `btnReloadPatches` | delete it, `btnReloadPatches` | `DeletingAPatchAndReloadingRevertsToTheBaseline` |
+| Reload repeatedly | no-op; reload rebuilds rather than diffs, so it cannot double-register | `ReloadingTheSamePatchTwiceChangesNothing` |
+| A broken patch is skipped | fix or remove it; the log-once key clears on a clean reload | `ABrokenPatchIsReportedOncePerReloadRatherThanOnEveryCall` |
+| **anything at all** | `btnClearState` | `ResetUndoesEveryStateAtOnce`, `ResetIsIdempotent` |
+
+**The one deliberate asymmetry.** Ramping the weights and putting them back does *not* return an
+already-exposed user to a different arm. That is not a missing pair — it is the sticky-after-exposure policy
+working, and a user who has seen a treatment must not switch arms. It is asserted explicitly rather than
+quietly omitted, so nobody later reads the gap as an oversight and "fixes" it.
+
+**On-screen pairs** are checked in PlayMode too: `TheForcedBannerAppearsAndClears` presses the buttons and
+asserts the banner's visibility both ways, because a banner that can be shown but never hidden is exactly
+the bug this table exists to prevent.
 
 ---
 
@@ -309,8 +346,7 @@ buckets so any population is a four-bucket sum at read time. A test asserts the 
 
 | Slice | Contents |
 | --- | --- |
-| 5 | Local `HttpListener` config server, shop screen, metrics and LiveOps panels, `docs/PACKAGE_SPEC.md`, the action-pair audit table |
-| 6 | FairyGUI package binding, README, media |
+| 6 | `ShopScreen`'s authored interior bound, README, media |
 
 Deferred with reasons:
 
@@ -329,10 +365,33 @@ Deferred with reasons:
 - **Behaviors are re-invoked per render rather than memoised.** Purity means the result is cacheable by
   `(behaviorKey, context)`, which would matter for a screen rebuilding every frame. The demo rebuilds on
   config change and on click, so it is not worth the invalidation surface yet.
+- **`ShopScreen`'s interior is built in code**, because the authored component is still an empty container.
+  `ShopScreenView` probes for `listOffers`, a `layout` controller and `btnCta` first, so drawing them is all
+  it takes to switch over — no code change. Until then the struck-through original price is faked with
+  surrounding dashes, since a plain `GTextField` has no strikethrough.
+- **The config fetch runs on the main thread.** `ConfigService` documents an off-thread contract and the
+  concurrency suite proves it holds, but the demo polls a localhost server every five seconds with a
+  two-second timeout, so moving it to a worker would add a marshalling path for no observable gain. The
+  contract exists for a real transport; this one does not need it.
+- **The simulated conversion rate is fixed at 20% and identical across arms**, so the conversion column
+  shows the plumbing rather than a lift. Fabricating a difference would make the panel look better and mean
+  nothing.
 
-### A note on the FairyGUI package
+### The FairyGUI package
 
-The package is being authored in parallel as `AbTestDemo` at 1600×900 with a phone-shaped `containerDevice`.
-Nothing in this repository binds to it yet. `docs/PRESENTATION_SPEC.md` is the authoring contract handed
-over mid-Slice 4 — what *must* exist. `docs/PACKAGE_SPEC.md` will be written in Slice 5 to document what
-*does* exist, from the real component and child names, and how the code binds to them.
+Authored as `AbTestDemo` at 1600×900 and bound by name at runtime, with code generation off.
+
+Two documents, deliberately different in kind. `docs/PRESENTATION_SPEC.md` says what *must* exist — the
+closed vocabulary a Lua patch has, handed over mid-Slice 4 as soon as tests pinned it, so the interior could
+be drawn in parallel. `docs/PACKAGE_SPEC.md` says what *does* exist — the real component and child names,
+written after the package was authored, describing rather than specifying.
+
+`PackageBindingTests` loads the real published package and asserts every component, child and controller
+page the code touches is present. The binder degrades gracefully at runtime, which is right for a player and
+exactly wrong to rely on for correctness: without those tests a rename would surface as a quietly blank
+panel days later rather than a named failure at republish time.
+
+One authored page is never selected: `SrmLight.state` has a `warn` page, and the framework only ever picks
+`unknown`, `healthy` or `alarm`. The warning band was considered and dropped — production sample-ratio
+checks are binary and an intermediate state invites "it is probably fine". The page is harmless and left in
+case that is ever revisited.
