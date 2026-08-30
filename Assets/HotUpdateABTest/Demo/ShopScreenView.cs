@@ -33,6 +33,18 @@ namespace HotUpdateABTest.Demo
         private const int ListWidth = 335;
         private const int GridGap = 9;
 
+        /// <summary>
+        /// Divider between the spec strip's four values: a middle dot, U+00B7.
+        /// </summary>
+        /// <remarks>
+        /// A dot rather than a slash, because the metrics table one panel over uses a slash between two
+        /// numbers and reusing it here would read as a second fraction. Built from its code point rather
+        /// than written as a literal so the file stays pure ASCII: this repository has already had one
+        /// document corrupted by a tool that reinterpreted UTF-8, and source is not where that should be
+        /// discovered.
+        /// </remarks>
+        private static readonly string Separator = char.ConvertFromUtf32(0x00B7);
+
         private static readonly int[] ListCardSize = { 335, 96 };
         private static readonly int[] GridCardSize = { 163, 190 };
 
@@ -70,6 +82,12 @@ namespace HotUpdateABTest.Demo
             _list = _binder.Child<GList>(Screen, "listOffers", "ShopScreen");
             _cta = _binder.Child<GObject>(Screen, "btnCta", "ShopScreen");
             _spec = _binder.Child<GObject>(Screen, "txtSpec", "ShopScreen");
+
+            // The compact form fits 335px at 11px in every ordinary case, but the absolute worst - grid,
+            // discounted, a ten-character badge and a twenty-four-character call to action - lands within a
+            // few pixels of the edge. Shrink costs nothing until then and guarantees the strip is never
+            // clipped, which matters because a half-read strip is worse than none: it looks authoritative.
+            if (_spec is GTextField strip) strip.autoSize = AutoSizeType.Shrink;
 
             if (_cta != null) _cta.onClick.Add(() => _onCta?.Invoke(OfferCatalogue.All[0].Id));
 
@@ -216,10 +234,34 @@ namespace HotUpdateABTest.Demo
         {
             if (_spec == null) return;
 
-            _spec.text = rejectionToken == null
-                ? spec.ToString()
-                : spec + "   [FALLBACK: " + rejectionToken + "]";
+            string text = Compact(spec);
+            _spec.text = rejectionToken == null ? text : text + "  [FALLBACK: " + rejectionToken + "]";
         }
+
+        /// <summary>The spec in the shortest form that still says everything.</summary>
+        /// <remarks>
+        /// <para>
+        /// Field names dropped, values kept, in the fixed order layout, price, badge, call to action. The
+        /// strip is 335 wide at 11px, which holds roughly 57 characters;
+        /// <c>PresentationSpec.ToString()</c> spends about half its length on labels the reader does not
+        /// need twice, and the worst case with them ran well past the edge and clipped.
+        /// </para>
+        /// <para>
+        /// The verbose form is still what goes to the log and what tests assert on. Compact on screen where
+        /// space is the constraint, verbose in the log where it is not - the same split as the rejection
+        /// token and its sentence.
+        /// </para>
+        /// <para>
+        /// Note the rejected case is always the <i>shortest</i> possible strip, because a rejection renders
+        /// the baseline: no badge, and "Buy" for the call to action. So the marker never competes for space
+        /// with a rich spec.
+        /// </para>
+        /// </remarks>
+        private static string Compact(PresentationSpec spec) =>
+            spec.Layout.ToString().ToLowerInvariant() + " " + Separator + " " +
+            spec.PriceStyle.ToString().ToLowerInvariant() + " " + Separator + " " +
+            (spec.BadgeText ?? "no badge") + " " + Separator + " " +
+            spec.CtaText;
 
         private static void SetChildText(GComponent card, string name, string text)
         {

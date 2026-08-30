@@ -90,7 +90,18 @@ One arm of one experiment. `listMetrics`'s default item.
 
 ### `MetricsHeader` — 1090 × 40, exported
 
-Column headings, inserted as the first list item. Static; nothing is bound.
+Column headings, inserted as the first list item. **Every label is static — the code never writes to any of
+them**, which is why none appear in `UiContract`: that list is the names the code binds, and putting
+unbound names in it would make the boot check assert things nothing depends on.
+
+Labels: `txtExperiment`, `txtVariant`, `txtAssignments`, `txtExposures`, `txtConversions`, `txtRate`,
+`txtBarRate`, `txtSRMLight`.
+
+Two of those carry meaning worth recording:
+
+- **`txtBarRate` reads `share / expected`.** The unit lives in the header rather than being repeated in
+  every cell, which is what let the bar's own title shrink to `49.9% / 50.0%` — see `barShare` below.
+- **`txtSRMLight` labels the ratio light**, which has no title of its own.
 
 ### `SrmLight` — 28 × 28
 
@@ -110,14 +121,27 @@ control needs to tell "the server said so" from "we cannot reach the server".
 
 ### `barShare` — 50 × 10, ProgressBar
 
-Controller `state`, pages `unknown` / `healthy` / `warn` / `alarm`, plus a `title` text showing the
-percentage. Used for the assignment-to-exposure funnel rate: `healthy` at 90% or above, `warn` at 50% or
-above, `alarm` below, `unknown` with no assignments yet.
+Controller `state`, pages `unknown` / `healthy` / `warn` / `alarm`, plus a `title` text.
 
-Deliberately the same four page names as `SrmLight`, so a reader scanning a row does not have to learn two
-colour languages. Note the asymmetry that follows: `warn` is reachable on the bar but never on the light. A
-funnel between a half and nine tenths is genuinely a middle state; a sample ratio is either plausible or it
-is not.
+**Shows observed share against expected**, so it sits beside the ratio light and explains it: the light says
+the split is not plausible, the bars say which arm is over- or under-represented and by how much. The page
+is chosen from the arm's *relative* deviation — under 5% `healthy`, under 20% `warn`, beyond that `alarm` —
+gated on the experiment's own verdict, so it reads `unknown` rather than alarming on four users.
+
+**Title format: `49.9% / 50.0%`.** The word `exp` moved into `MetricsHeader.txtBarRate`, which now reads
+`share / expected`. The previous form, `49.9% (exp 50.0%)`, measured 129px in a 130px cell — it fitted by
+one pixel, which is not the same as fitting, since any font fallback or rounding difference would have
+clipped it. The current form measures 114px at its widest possible value, and `StripWidthTests` asserts it
+keeps at least ten pixels of slack. A unit belongs in a column header rather than repeated in every row
+anyway.
+
+**Set `value` before `title`.** `GProgressBar.Update` rewrites the title from its `titleType` whenever the
+value changes, so the other order has the title silently replaced with a bare percentage. No `TweenValue`;
+`unknown` renders a dash rather than a number.
+
+The four page names deliberately match `SrmLight`, so a reader scanning a row does not learn two colour
+languages. One asymmetry follows: `warn` is reachable on the bar and never on the light. An arm can be
+somewhat off; a sample ratio is either plausible or it is not.
 
 ### `ForcedBanner` — 420 × 34, Label
 
@@ -154,12 +178,23 @@ The game surface, inside `containerDevice`.
 | `btnCta` | Button | `PresentationSpec.CtaText` |
 | `txtSpec` | text | The applied spec, plus a rejection marker — see below |
 
-**`txtSpec` is a debug strip, and it is load-bearing for the recordings.** It shows
-`PresentationSpec.ToString()` so every beat is readable in a still frame; without it a viewer sees the shop
-change and has to guess which of the two experiments moved. When a spec is rejected it also carries a short
-token — `[FALLBACK: unknown field]`, `[FALLBACK: text too long]`, `[FALLBACK: bad enum value]` — because a
-rejected spec renders the baseline, and the baseline is visually identical to a working control variant. The
-full validation sentence goes to the log, where there is room for it.
+**`txtSpec` is a debug strip, and it is load-bearing for the recordings.** Without it a viewer sees the shop
+change and has to guess which of the two experiments moved.
+
+It shows the four spec values separated by middle dots — `grid · discounted · BEST VALUE · Claim offer` —
+rather than `PresentationSpec.ToString()`, whose field labels spend about half the width saying things the
+reader does not need twice. At 335px and 11px the strip holds roughly 57 characters; the verbose form ran
+past that and clipped. The verbose form is still what goes to the log and what tests assert on.
+
+When a spec is rejected it also carries a short token — `[FALLBACK: unknown field]`, `[FALLBACK: text too
+long]`, `[FALLBACK: bad enum value]` — because a rejected spec renders the baseline, and the baseline is
+visually identical to a working control variant. The full validation sentence goes to the log. Note the
+rejected strip is always the *shortest* case, since a rejection renders the baseline: no badge, and `Buy`.
+
+The binder sets `autoSize = Shrink` on it regardless of how it was authored. The worst *realistic* copy fits
+at full size, but the worst *permitted* copy — ten and twenty-four characters of the font's widest glyph —
+measures 429px and would scale to about 8.6px. Shrink costs nothing until then and guarantees the strip
+never clips, which matters because a half-read strip still looks authoritative.
 
 ### `OfferCard` — 335 × 96 (list) / 163 × 190 (grid), exported
 

@@ -18,7 +18,7 @@ Nothing pressed yet.
 
 **The tell:** the status chip reads **LIVE**, the config version is shown next to it, and the shop screen
 inside the phone frame is rendering. The strip under the shop reads the applied spec, e.g.
-`layout=list price=plain badge=(none) cta='Buy'` — so a viewer knows what "before" was without being told.
+`list · plain · no badge · Buy` — so a viewer knows what "before" was without being told.
 
 ---
 
@@ -27,7 +27,7 @@ inside the phone frame is rendering. The strip under the shop reads the applied 
 Press **Simulate 5000 users**.
 
 **The tell:** the metrics table fills. Per arm: assigned, exposed, conversions, rate, a share bar reading
-something like `49.9% (exp 50.0%)`, and a green **SRM** light on each experiment's first row. Two
+something like `49.9% / 50.0%`, and a green **SRM** light on each experiment's first row. Two
 experiments are listed, in two different layers, both healthy — that is the layer story, visible without
 commentary.
 
@@ -40,7 +40,7 @@ the thing beats 4 and 5 will break in two different ways.
 
 Press **Force variant** a few times, watching the shop screen.
 
-**The tell:** the spec strip changes and the shop changes with it — `price=discounted` puts a struck-through
+**The tell:** the spec strip changes and the shop changes with it — the price switches to a struck-through
 original beside the price, a badge appears, the CTA copy changes. Meanwhile the **red FORCED banner** sits
 under the phone saying the numbers are excluded.
 
@@ -57,7 +57,7 @@ poll.
 **The tell — three things move at once:**
 - the config version in the top bar increments,
 - the scenario text reads `kill switch (all stopped)`,
-- the shop screen returns to the baseline spec — `layout=list price=plain badge=(none) cta='Buy'`.
+- the shop screen returns to the baseline spec — `list · plain · no badge · Buy`.
 
 The strip is what makes this readable. Without it a viewer sees the shop change and has to guess whether an
 experiment stopped or a variant merely lost a coin flip.
@@ -74,7 +74,7 @@ Press **Break: skip exposure**, then **Simulate 5000 users**.
 - the **assigned** column is still an even split, roughly 2500 / 2500 — bucketing is working perfectly,
 - the **exposed** column is not: one arm has thousands, the other has zero,
 - the **SRM light goes red**,
-- that arm's share bar reads `0.0% (exp 50.0%)`.
+- that arm's share bar reads `0.0% / 50.0%`.
 
 This is the beat the whole telemetry design exists for. An assignment-based ratio check would have stayed
 green through it, because the assignment split never moved — which is exactly why the check is run over the
@@ -150,11 +150,11 @@ end)
 
 Press **Reload Lua patches**.
 
-**The tell:** the spec strip changes to `badge=FLASH cta='Grab it now'` and the shop screen follows — new
+**The tell:** the spec strip changes to `list · discounted · FLASH · Grab it now` and the shop screen follows — new
 badge text, new button copy — **with no recompile and without leaving play mode**. The log line says how
 many files loaded and how many behaviors are registered.
 
-Delete the file and press **Reload Lua patches** again: the strip returns to `LIMITED` / `Claim offer`. The
+Delete the file and press **Reload Lua patches** again: the strip returns to `LIMITED` and `Claim offer`. The
 patch channel has a way back, which is the half of hot update people forget to demonstrate.
 
 ### 8b. A bad patch

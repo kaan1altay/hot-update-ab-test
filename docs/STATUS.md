@@ -79,10 +79,25 @@ Last run 2026-08-30, all three suites green.
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 234 | 234 passed, ~12 s |
 | Unity EditMode batchmode | 315 | 315 passed, 0 skipped |
-| Unity PlayMode batchmode | 10 | 10 passed |
+| Unity PlayMode batchmode | 15 | 15 passed |
 
-EditMode is a superset of the core suite: the same 234 tests plus 81 that need the engine, the Lua VM or a
-socket. The soak accounts for most of the core suite's twelve seconds; everything else is about one.
+### How the suites overlap
+
+**330 distinct tests.** Verified by set arithmetic on fully-qualified test names from the three result
+files, not by subtracting counts:
+
+| | Count | |
+| --- | --- | --- |
+| Core tests run by `dotnet test` **and** again inside Unity | **234** | every one of them; none are CI-only |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **81** | 234 + 81 = the 315 EditMode total |
+| PlayMode tests | **15** | no overlap with EditMode |
+| **Distinct** | **330** | |
+
+The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
+plain .NET project, once by Unity. **Adding the three suite totals gives 564, which counts the core tests
+twice. Do not quote it.**
+
+The soak accounts for most of the core suite's twelve seconds; everything else is about one.
 
 Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above to run the UI suite.
 
@@ -115,6 +130,7 @@ Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above 
 | `DemoPlayModeTests` | 7 | The fallback declaring the same names as the package, the demo starting on whichever UI exists, buttons moving what is on screen, the table filling, the forced banner appearing and clearing |
 | `ShareAndSizingTests` | 10 | Observed and expected share, zero-weight arms excluded from the split, the text limits the card is drawn to hold, rejection tokens derived from issue codes |
 | `ExposureAtViewTimeTests` | 3 | A shop screen built and rendered 20× with the sink empty, `MarkExposed` producing exactly one, the live demo repainting without manufacturing exposures |
+| `StripWidthTests` | 5 | The bar title and the spec strip measured through FairyGUI's own text layout at their worst case, and the strip proven to be set to `Shrink` |
 
 ### Tests that demonstrate the failure mode rather than the success path
 

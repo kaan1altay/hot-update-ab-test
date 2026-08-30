@@ -212,9 +212,14 @@ namespace HotUpdateABTest.Demo
                 // replaced with a bare percentage.
                 if (bar is GProgressBar progress) progress.value = variant.ObservedShare * 100.0;
 
+                // "49.9% / 50.0%" rather than "49.9% (exp 50.0%)": eighteen characters at 16px bold is
+                // about 160px in a 130px bar, and shrinking the font would make the one cell a reviewer is
+                // meant to scan the smallest text in the table. The word moved into the column header
+                // (MetricsHeader.txtBarRate reads "share / expected"), which is where a unit belongs in a
+                // table rather than repeated in every row.
                 SetChildText(bar, "title", owner.UsersExposed == 0
                     ? "-"
-                    : Percent(variant.ObservedShare) + " (exp " + Percent(variant.ExpectedShare) + ")");
+                    : Percent(variant.ObservedShare) + " / " + Percent(variant.ExpectedShare));
 
                 _binder.SelectPage(bar.GetController("state"), SharePage(owner, variant), "barShare");
             }

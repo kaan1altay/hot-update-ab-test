@@ -5,7 +5,8 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
-Unity 6 · C# · xLua · FairyGUI · 315 EditMode tests, 10 PlayMode, 234 of them running in CI without Unity.
+Unity 6 · C# · xLua · FairyGUI · **330 tests**: 234 engine-free core tests that run under `dotnet test` in
+CI *and* again inside Unity, plus 81 Unity-only EditMode tests and 15 PlayMode tests.
 
 ---
 
@@ -59,7 +60,7 @@ each beat, what you should be able to read in a single still frame.
 ## Tests
 
 ```powershell
-dotnet test dotnet/HotUpdateABTest.sln          # 234, ~12s, no Unity licence needed
+dotnet test dotnet/HotUpdateABTest.sln          # 234 core tests, ~12s, no Unity licence needed
 ```
 
 The decision core is written without touching `UnityEngine` and is compiled a second time as a plain .NET
@@ -68,6 +69,10 @@ speed: the Core assembly sets `noEngineReferences`, and CI greps for a Unity `us
 "the decision core has no engine dependency" is a build constraint rather than a claim in a README.
 
 Unity's own suites run locally with the Editor closed — commands in `docs/STATUS.md`.
+
+Those 234 core tests are a strict subset of the 315 EditMode ones: the same source compiled twice. Summing
+the suites would count them twice, so the honest total is 330 distinct tests. `docs/STATUS.md` shows the
+set arithmetic.
 
 ---
 
