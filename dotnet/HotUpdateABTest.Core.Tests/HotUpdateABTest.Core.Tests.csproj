@@ -45,7 +45,7 @@
 
   <ItemGroup>
     <!--
-      Pinned to match what Unity ships. Newtonsoft 13.0.3 is what com.unity.nuget.newtonsoft-json 3.2.1
+      Pinned to match what Unity ships. Newtonsoft 13.0.3 is what com.unity.nuget.newtonsoft-json 3.2.x
       contains, and NUnit stays on 3.x because that is the generation the Unity Test Framework uses -
       NUnit 4 removed the classic Assert.AreEqual surface, so a 4.x here would compile tests the Editor
       then refuses.

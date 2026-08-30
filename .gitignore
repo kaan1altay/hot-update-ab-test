@@ -134,3 +134,8 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ll]ua/patches/*
 !/[Aa]ssets/[Ll]ua/patches/README.md
 !/[Aa]ssets/[Ll]ua/patches/*.meta
+
+# Editor and tooling artefacts that appear from opening the project.
+/.vscode/
+/UpgradeLog.htm
+/UpgradeLog*.htm

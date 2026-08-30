@@ -15,7 +15,7 @@ binding, the demo script, and the README.
 | Unity | 6000.0.59f2 (URP 17.0.4, Input System 1.14.2, Test Framework 1.6.0) |
 | xLua | v2.1.16 (MIT), vendored — see `Assets/XLua/VENDORED.md` |
 | FairyGUI | 5.2.0 (MIT), runtime only, vendored — see `Assets/FairyGUI/VENDORED.md` |
-| Newtonsoft.Json | `com.unity.nuget.newtonsoft-json` 3.2.1 (Newtonsoft.Json 13.0.3) |
+| Newtonsoft.Json | `com.unity.nuget.newtonsoft-json` 3.2.2 (Newtonsoft.Json 13.0.3) |
 | .NET (CI + local second compilation) | net9.0, C# LangVersion pinned to 9.0 |
 | NUnit | Unity bundles **3.5.0** (`com.unity.ext.nunit`); the .NET project pins **3.14.0** |
 | Platforms Lua runs on | Windows and Linux desktop x64 only — the vendored xLua native plugin covers no others |
@@ -79,22 +79,22 @@ Last run 2026-08-30, all three suites green.
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 234 | 234 passed, ~12 s |
 | Unity EditMode batchmode | 315 | 315 passed, 0 skipped |
-| Unity PlayMode batchmode | 15 | 15 passed |
+| Unity PlayMode batchmode | 23 | 23 passed |
 
 ### How the suites overlap
 
-**330 distinct tests.** Verified by set arithmetic on fully-qualified test names from the three result
+**338 distinct tests.** Verified by set arithmetic on fully-qualified test names from the three result
 files, not by subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **234** | every one of them; none are CI-only |
 | Unity-only EditMode tests (Lua VM, sockets, the package) | **81** | 234 + 81 = the 315 EditMode total |
-| PlayMode tests | **15** | no overlap with EditMode |
-| **Distinct** | **330** | |
+| PlayMode tests | **23** | no overlap with EditMode |
+| **Distinct** | **338** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 564, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 572, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's twelve seconds; everything else is about one.
@@ -131,6 +131,7 @@ Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above 
 | `ShareAndSizingTests` | 10 | Observed and expected share, zero-weight arms excluded from the split, the text limits the card is drawn to hold, rejection tokens derived from issue codes |
 | `ExposureAtViewTimeTests` | 3 | A shop screen built and rendered 20× with the sink empty, `MarkExposed` producing exactly one, the live demo repainting without manufacturing exposures |
 | `StripWidthTests` | 5 | The bar title and the spec strip measured through FairyGUI's own text layout at their worst case, and the strip proven to be set to `Shrink` |
+| `PlayTestRegressionTests` | 8 | The three defects the first hand play-test found, each reproduced against the authored package before it was fixed, plus the two observations that turned out not to be code defects |
 
 ### Tests that demonstrate the failure mode rather than the success path
 
