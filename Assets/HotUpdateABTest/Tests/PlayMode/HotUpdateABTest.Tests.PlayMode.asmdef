@@ -1,6 +1,6 @@
 {
-    "name": "HotUpdateABTest.Tests.EditMode",
-    "rootNamespace": "HotUpdateABTest.Tests",
+    "name": "HotUpdateABTest.Tests.PlayMode",
+    "rootNamespace": "HotUpdateABTest.Tests.PlayMode",
     "references": [
         "HotUpdateABTest.Core",
         "HotUpdateABTest.Runtime",
@@ -11,9 +11,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,

@@ -1,0 +1,20 @@
+{
+    "name": "HotUpdateABTest.Demo",
+    "rootNamespace": "HotUpdateABTest.Demo",
+    "references": [
+        "HotUpdateABTest.Core",
+        "HotUpdateABTest.Runtime",
+        "HotUpdateABTest.Transport",
+        "FairyGUI",
+        "XLua"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
