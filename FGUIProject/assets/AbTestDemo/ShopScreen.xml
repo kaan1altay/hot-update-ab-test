@@ -1,2 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component size="375,667"/>
+<component size="375,667">
+  <displayList>
+    <text id="n0_hu6h" name="txtShopTitle" xy="87,20" size="200,49" font="Bell MT" fontSize="36" color="#999999" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" strokeSize="2" singleLine="true" text="Title">
+      <relation target="" sidePair="width-width,center-center,top-top"/>
+    </text>
+    <list id="n1_hu6h" name="listOffers" xy="20,76" size="335,470" overflow="scroll" lineGap="5" defaultItem="ui://pupdaecjhu6hh" align="center">
+      <relation target="" sidePair="width-width,height-height"/>
+      <item/>
+      <item/>
+      <item/>
+      <item/>
+    </list>
+    <component id="n2_hu6h" name="btnCta" src="hu6ho" fileName="buttonDefault.xml" xy="20,566" size="335,52">
+      <Button titleFontSize="17"/>
+    </component>
+    <text id="n3_hu6h" name="txtSpec" xy="20,630" size="335,22" grayed="true" fontSize="11" align="center" autoSize="none" bold="true" text="Spec1"/>
+  </displayList>
+</component>

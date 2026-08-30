@@ -93,7 +93,7 @@ namespace HotUpdateABTest.Tests.PlayMode
 
                 for (int i = 0; i < 20; i++)
                 {
-                    view.Apply(controller.RenderShop(), controller.LastRejectionReason);
+                    view.Apply(controller.RenderShop(), controller.LastRejectionToken);
                 }
 
                 Assert.That(_sink.TotalRecorded, Is.Zero,

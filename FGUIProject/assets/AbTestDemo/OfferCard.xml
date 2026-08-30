@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component size="335,96" opaque="false">
+  <controller name="price" pages="0,plain,1,discounted" selected="1"/>
+  <controller name="badge" homePageType="specific" homePage="0" pages="0,none,1,shown" selected="1"/>
+  <controller name="layout" pages="0,list,1,grid" selected="0"/>
+  <displayList>
+    <graph id="n21_hu6h" name="graphBg" xy="0,0" size="335,96" type="rect" lineSize="2" lineColor="#ff663300" fillColor="#ffffff99">
+      <gearXY controller="layout" default="0,0,0,0" positionsInPercent="true"/>
+      <gearSize controller="layout" pages="1" values="156,183,1,1" default="335,96,1,1"/>
+    </graph>
+    <loader id="n3_hu6h" name="imgIcon" xy="0,5" size="88,72" aspect="true" url="ui://pupdaecjhu6hk" align="center" vAlign="middle" fill="scaleMatchHeight">
+      <gearXY controller="layout" pages="0,1" values="0,12,0,0.057|0,7,0,0.083" positionsInPercent="true"/>
+      <gearSize controller="layout" pages="1" values="122,100,1,1" default="88,72,1,1"/>
+    </loader>
+    <text id="n7_hu6h" name="txtName" xy="95,14" size="137,24" fontSize="16" color="#ffffcc" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" strokeColor="#000000" strokeSize="2" singleLine="true" text="Starter Pack">
+      <gearXY controller="layout" pages="0,1" values="96,14,0.287,0.146|10,115,0.03,1.208" positionsInPercent="true"/>
+      <gearSize controller="layout" pages="1" values="143,24,1,1" default="137,24,1,1"/>
+    </text>
+    <text id="n8_hu6h" name="txtPrice" xy="95,50" size="90,29" fontSize="20" color="#ff9900" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" strokeColor="#000000" singleLine="true" text="$4.99">
+      <gearXY controller="layout" pages="0,1" values="96,50,0.287,0.521|10,142,0.03,1.479" positionsInPercent="true"/>
+      <gearSize controller="layout" pages="0,1" values="90,29,1,1|80,29,1,1"/>
+    </text>
+    <text id="n9_hu6h" name="txtOriginal" xy="195,54" size="40,22" group="n13_hu6h" grayed="true" fontSize="14" color="#ff9900" align="center" vAlign="middle" ubb="true" vars="true" strokeColor="#000000" strokeSize="2" singleLine="true" text="$8.99">
+      <gearXY controller="layout" pages="0,1" values="196,54,0.585,0.563|94,147,0.281,1.531" positionsInPercent="true"/>
+      <gearSize controller="layout" default="40,22,1,1"/>
+    </text>
+    <graph id="n10_hu6h" name="graphStrike" xy="191,64" pivot="0.5,0.5" size="48,2" group="n13_hu6h" type="rect" lineSize="0" fillColor="#ffcc0000">
+      <gearXY controller="layout" pages="0,1" values="192,64,0.573,0.667|90,157,0.269,1.635" positionsInPercent="true"/>
+      <gearSize controller="layout" default="48,2,1,1"/>
+    </graph>
+    <group id="n13_hu6h" name="groupDiscount" xy="191,54" size="48,22" advanced="true">
+      <gearDisplay controller="price" pages="1"/>
+    </group>
+    <graph id="n18_hu6h" name="imgBadgeBg" xy="239,10" size="84,24" group="n20_hu6h" type="rect" lineSize="0" fillColor="#ff666666">
+      <gearXY controller="layout" pages="0,1" values="239,10,0.713,0.104|71,8,0.212,0.083" positionsInPercent="true"/>
+      <gearSize controller="layout" default="84,24,1,1"/>
+    </graph>
+    <text id="n19_hu6h" name="txtBadge" xy="239,10" size="84,24" group="n20_hu6h" fontSize="13" color="#ffffcc" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" strokeColor="#000000" strokeSize="2" singleLine="true" text="Badge">
+      <gearXY controller="layout" pages="1" values="71,8,0.212,0.083" default="239,10,0.713,0.104" positionsInPercent="true"/>
+      <gearSize controller="layout" default="84,24,1,1"/>
+    </text>
+    <group id="n20_hu6h" name="groupBadge" xy="239,10" size="84,24" advanced="true">
+      <gearDisplay controller="badge" pages="1"/>
+    </group>
+  </displayList>
+</component>

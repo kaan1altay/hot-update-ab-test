@@ -162,12 +162,14 @@ namespace HotUpdateABTest.Lua
 
         /// <summary>
         /// As <see cref="Present(UserContext, VariantAssignment, SpecFieldGroup, PresentationSpec, bool)"/>,
-        /// but also reports why the baseline was returned.
+        /// but also reports a short token naming why the baseline was returned.
         /// </summary>
         /// <remarks>
         /// The demo needs the distinction on screen: a rejected spec renders the baseline, which looks
-        /// exactly like a working control variant unless something says otherwise. The log alone does not
-        /// disambiguate a still frame.
+        /// exactly like a working control variant unless something says otherwise, and the log alone does
+        /// not disambiguate a still frame. A token rather than the sentence, because a viewer watching a
+        /// recording needs the class of failure and has no time to read prose off a still - the full
+        /// message is in the log where there is room for it.
         /// </remarks>
         public PresentationSpec Present(
             UserContext user,
@@ -175,9 +177,9 @@ namespace HotUpdateABTest.Lua
             SpecFieldGroup group,
             PresentationSpec baseline,
             bool hasOriginalPrice,
-            out string rejectionReason)
+            out string rejectionToken)
         {
-            rejectionReason = null;
+            rejectionToken = null;
             ThrowIfDisposed();
 
             if (user == null) throw new ArgumentNullException(nameof(user));
@@ -188,7 +190,7 @@ namespace HotUpdateABTest.Lua
 
             if (!IsReady)
             {
-                rejectionReason = "the Lua environment is not running";
+                rejectionToken = SpecRejection.NoLua;
                 LogOnce("lua.notReady", "the Lua environment is not running; every variant renders control");
                 return baseline;
             }
@@ -202,16 +204,19 @@ namespace HotUpdateABTest.Lua
                 bool ok = result.Length > 0 && result[0] is bool flag && flag;
                 if (!ok)
                 {
-                    rejectionReason = Describe(result, 1);
+                    string detail = Describe(result, 1);
+                    rejectionToken = detail.Contains("no behavior is registered")
+                        ? SpecRejection.NoBehavior
+                        : SpecRejection.LuaError;
                     LogOnce("behavior.failed." + behaviorKey,
                         "variant '" + assignment.VariantId + "' of '" + assignment.ExperimentId +
-                        "' renders control: " + rejectionReason);
+                        "' renders control: " + detail);
                     return baseline;
                 }
 
                 if (!(result[1] is LuaTable table))
                 {
-                    rejectionReason = "the behavior returned something that is not a table";
+                    rejectionToken = SpecRejection.NotATable;
                     LogOnce("behavior.notATable." + behaviorKey,
                         "variant '" + assignment.VariantId + "' returned something that is not a table");
                     return baseline;
@@ -225,7 +230,7 @@ namespace HotUpdateABTest.Lua
 
                     if (!read.IsValid)
                     {
-                        rejectionReason = read.Issues.FirstError;
+                        rejectionToken = SpecRejection.Token(read.Issues);
                         LogOnce("spec.invalid." + behaviorKey,
                             "the spec from '" + behaviorKey + "' was rejected and renders control: " +
                             read.Issues.Describe());
@@ -243,7 +248,7 @@ namespace HotUpdateABTest.Lua
                 // The sandbox and the Lua-side pcall should make this unreachable. It is here because a
                 // variant rendering the wrong thing is survivable and an exception escaping into a UI
                 // callback is not.
-                rejectionReason = e.Message;
+                rejectionToken = SpecRejection.LuaError;
                 LogOnce("behavior.threw." + behaviorKey,
                     "calling '" + behaviorKey + "' threw and renders control: " + e.Message);
                 return baseline;

@@ -207,12 +207,16 @@ namespace HotUpdateABTest.Demo
 
             if (row.GetChild("barShare") is GComponent bar)
             {
-                double funnel = variant.ExposureRate;
+                // Value before title, and it matters: GProgressBar.Update rewrites the title from its
+                // titleType whenever the value changes, so setting the title first would have it silently
+                // replaced with a bare percentage.
+                if (bar is GProgressBar progress) progress.value = variant.ObservedShare * 100.0;
 
-                if (bar is GProgressBar progress) progress.value = funnel * 100.0;
-                SetChildText(bar, "title", variant.UsersAssigned == 0 ? "-" : Percent(funnel));
-                _binder.SelectPage(bar.GetController("state"),
-                    FunnelPage(variant.UsersAssigned, funnel), "barShare");
+                SetChildText(bar, "title", owner.UsersExposed == 0
+                    ? "-"
+                    : Percent(variant.ObservedShare) + " (exp " + Percent(variant.ExpectedShare) + ")");
+
+                _binder.SelectPage(bar.GetController("state"), SharePage(owner, variant), "barShare");
             }
 
             if (row.GetChild("srmLight") is GComponent light)
@@ -327,11 +331,35 @@ namespace HotUpdateABTest.Demo
             }
         }
 
-        private static string FunnelPage(long assigned, double funnel)
+        /// <summary>Which page of <c>barShare</c> one arm's share deviation selects.</summary>
+        /// <remarks>
+        /// <para>
+        /// The bar shows observed share against expected, so it sits beside the ratio light and explains
+        /// it: the light says the split is not plausible, the bars say <i>which arm</i> is over- or
+        /// under-represented and by how much. They share one vocabulary - unknown, healthy, warn, alarm -
+        /// so a reader scanning a row does not have to learn two colour languages.
+        /// </para>
+        /// <para>
+        /// Gated on the experiment's own verdict: below the ratio check's data floor the bar reads
+        /// <c>unknown</c> rather than alarming on four users, for exactly the reason the check itself has a
+        /// floor. Deviation is relative rather than in percentage points, so a 10% arm is judged on the
+        /// same terms as a 50% one.
+        /// </para>
+        /// <para>
+        /// Note the asymmetry with the light: <c>warn</c> is reachable here and never there. An arm can be
+        /// somewhat off; a sample ratio is either plausible or it is not.
+        /// </para>
+        /// </remarks>
+        private static string SharePage(ExperimentMetrics owner, VariantMetrics variant)
         {
-            if (assigned == 0) return "unknown";
-            if (funnel >= 0.9) return "green";
-            return funnel >= 0.5 ? "yellow" : "red";
+            if (owner.Srm.State == SrmState.Unknown) return "unknown";
+            if (variant.ExpectedShare <= 0) return "unknown";
+
+            double deviation = System.Math.Abs(variant.ObservedShare - variant.ExpectedShare) /
+                               variant.ExpectedShare;
+
+            if (deviation < 0.05) return "healthy";
+            return deviation < 0.20 ? "warn" : "alarm";
         }
 
         private static string LogPage(AbLogLevel level)

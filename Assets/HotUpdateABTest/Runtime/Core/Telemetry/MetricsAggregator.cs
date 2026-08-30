@@ -47,6 +47,18 @@ namespace HotUpdateABTest.Core.Telemetry
         /// </remarks>
         public double ExposureRate => UsersAssigned == 0 ? 0 : UsersExposed / (double)UsersAssigned;
 
+        /// <summary>
+        /// This arm's share of the experiment's exposed users, or 0 when nobody has been exposed.
+        /// </summary>
+        /// <remarks>
+        /// The observed half of the sample-ratio question, kept beside the expected half so a reader can
+        /// see how far off a ratio is rather than only that the check disliked it.
+        /// </remarks>
+        public double ObservedShare { get; internal set; }
+
+        /// <summary>This arm's share of the configured weight, among arms that hold traffic.</summary>
+        public double ExpectedShare { get; internal set; }
+
         /// <summary>True when the config no longer declares this arm but events for it were recorded.</summary>
         public bool IsOrphaned => ConfiguredWeight < 0;
     }
@@ -312,6 +324,8 @@ namespace HotUpdateABTest.Core.Telemetry
                 }
             }
 
+            FillShares(variants);
+
             return new ExperimentMetrics
             {
                 ExperimentId = experiment.Id,
@@ -342,6 +356,33 @@ namespace HotUpdateABTest.Core.Telemetry
                 Srm = new SrmResult(SrmState.Unknown, 0, 0, 0, 0,
                     "this experiment is no longer in the configuration, so there are no weights to check against")
             };
+        }
+
+        /// <summary>Fills in each arm's observed and expected share of the experiment.</summary>
+        /// <remarks>
+        /// Expected share is computed over arms with non-zero weight only, matching what the ratio check
+        /// tests: an arm the operator emptied is not part of the split, and dividing by a total that
+        /// included it would make every other arm look under-represented.
+        /// </remarks>
+        private static void FillShares(List<VariantMetrics> variants)
+        {
+            long totalExposed = 0;
+            long totalWeight = 0;
+
+            for (int i = 0; i < variants.Count; i++)
+            {
+                totalExposed += variants[i].UsersExposed;
+                if (variants[i].ConfiguredWeight > 0) totalWeight += variants[i].ConfiguredWeight;
+            }
+
+            for (int i = 0; i < variants.Count; i++)
+            {
+                var variant = variants[i];
+                variant.ObservedShare = totalExposed == 0 ? 0 : variant.UsersExposed / (double)totalExposed;
+                variant.ExpectedShare = totalWeight <= 0 || variant.ConfiguredWeight <= 0
+                    ? 0
+                    : variant.ConfiguredWeight / (double)totalWeight;
+            }
         }
 
         private static VariantMetrics Snapshot(

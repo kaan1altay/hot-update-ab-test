@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="50,10" extention="ProgressBar">
-  <controller name="state" exported="true" pages="4,unknown,0,green,1,yellow,2,red" selected="0"/>
+  <controller name="state" exported="true" pages="4,unknown,0,healthy,1,warn,2,alarm" selected="0"/>
   <displayList>
     <graph id="n0_8sec" name="n0" xy="0,0" size="50,10" touchable="false" type="rect" lineSize="0" lineColor="#ffa0a0a0" fillColor="#fff0f0f0">
       <relation target="" sidePair="width-width,height-height"/>

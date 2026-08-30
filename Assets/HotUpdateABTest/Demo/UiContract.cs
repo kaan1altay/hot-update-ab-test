@@ -45,8 +45,10 @@ namespace HotUpdateABTest.Demo
     /// </para>
     /// <para>
     /// Pages are listed by name rather than index on purpose. <c>barShare</c> declares its pages as
-    /// <c>4,unknown,0,green,1,yellow,2,red</c>, so the page whose id is 4 sits at index 0; anything
-    /// positional silently picks the wrong colour. It is a package-wide rule, not a quirk of one component.
+    /// <c>4,unknown,0,healthy,1,warn,2,alarm</c>, so the page whose id is 4 sits at index 0; anything
+    /// positional silently picks the wrong colour. It is a package-wide rule, not a quirk of one component
+    /// - and the id-to-name mapping has already been re-authored once, which is exactly the change that
+    /// would have gone unnoticed had anything indexed positionally.
     /// </para>
     /// </remarks>
     public static class UiContract
@@ -101,9 +103,9 @@ namespace HotUpdateABTest.Demo
 
             new UiExpectation("barShare", "controller", "state"),
             new UiExpectation("barShare", "page", "unknown", "state"),
-            new UiExpectation("barShare", "page", "green", "state"),
-            new UiExpectation("barShare", "page", "yellow", "state"),
-            new UiExpectation("barShare", "page", "red", "state"),
+            new UiExpectation("barShare", "page", "healthy", "state"),
+            new UiExpectation("barShare", "page", "warn", "state"),
+            new UiExpectation("barShare", "page", "alarm", "state"),
 
             new UiExpectation("srmLight", "controller", "state"),
             new UiExpectation("srmLight", "page", "unknown", "state"),

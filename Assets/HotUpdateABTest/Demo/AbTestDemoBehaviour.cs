@@ -168,7 +168,7 @@ namespace HotUpdateABTest.Demo
             if (_controller == null || _console == null) return;
 
             var spec = _controller.RenderShop();
-            _shop?.Apply(spec, _controller.LastRejectionReason);
+            _shop?.Apply(spec, _controller.LastRejectionToken);
 
             _console.SetStatus(_controller.Snapshot, DescribeServer(), DescribeScenario());
             _console.SetForcedBanner(_controller.IsForced, _controller.ForcedDescription ?? "");

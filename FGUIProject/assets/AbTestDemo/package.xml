@@ -13,6 +13,9 @@
     <component id="8seca" name="ForcedBanner.xml" path="/"/>
     <component id="8secb" name="containerDevice.xml" path="/"/>
     <component id="8secc" name="MetricsHeader.xml" path="/" exported="true"/>
+    <component id="hu6hh" name="OfferCard.xml" path="/" exported="true"/>
+    <image id="hu6hk" name="giftpng.png" path="/"/>
+    <component id="hu6ho" name="buttonDefault.xml" path="/"/>
   </resources>
   <publish name=""/>
 </packageDescription>

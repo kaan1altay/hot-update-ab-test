@@ -79,10 +79,10 @@ namespace HotUpdateABTest.Demo
 
         /// <summary>Applies a spec.</summary>
         /// <param name="spec">The validated spec to render.</param>
-        /// <param name="rejectionReason">
-        /// Why the spec fell back to the baseline, or null when it did not.
+        /// <param name="rejectionToken">
+        /// A short token naming why the spec fell back to the baseline, or null when it did not.
         /// </param>
-        public void Apply(PresentationSpec spec, string rejectionReason)
+        public void Apply(PresentationSpec spec, string rejectionToken)
         {
             Current = spec;
 
@@ -91,7 +91,7 @@ namespace HotUpdateABTest.Demo
             for (int i = 0; i < _cards.Count; i++) ApplyCard(_cards[i], OfferCatalogue.All[i], spec);
 
             SetCtaText(spec.CtaText);
-            SetSpecStrip(spec, rejectionReason);
+            SetSpecStrip(spec, rejectionToken);
         }
 
         private void BuildCards()
@@ -212,13 +212,13 @@ namespace HotUpdateABTest.Demo
         /// log line, being off in the log panel, does not disambiguate the shop screen in a still.
         /// </para>
         /// </remarks>
-        private void SetSpecStrip(PresentationSpec spec, string rejectionReason)
+        private void SetSpecStrip(PresentationSpec spec, string rejectionToken)
         {
             if (_spec == null) return;
 
-            _spec.text = rejectionReason == null
+            _spec.text = rejectionToken == null
                 ? spec.ToString()
-                : spec + "   [FALLBACK: spec rejected]";
+                : spec + "   [FALLBACK: " + rejectionToken + "]";
         }
 
         private static void SetChildText(GComponent card, string name, string text)

@@ -57,7 +57,14 @@ namespace HotUpdateABTest.Core.Presentation
     public readonly struct PresentationSpec : IEquatable<PresentationSpec>
     {
         /// <summary>Longest badge text the screen has room for.</summary>
-        public const int MaxBadgeLength = 16;
+        /// <remarks>
+        /// Ten, not sixteen. The badge sits beside the offer name on a 335-wide card and is drawn for ten
+        /// characters at 13px; sixteen does not fit without shrinking the font past legibility. Because the
+        /// reader rejects rather than truncates, whatever this number says is <i>guaranteed</i> to arrive -
+        /// so it has to be a length the card can actually hold. Lowering the constant is the honest fix;
+        /// clipping at render time would be the dishonest one.
+        /// </remarks>
+        public const int MaxBadgeLength = 10;
 
         /// <summary>Longest call-to-action text the button has room for.</summary>
         public const int MaxCtaLength = 24;

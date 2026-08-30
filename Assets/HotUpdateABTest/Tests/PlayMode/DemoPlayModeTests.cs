@@ -82,7 +82,7 @@ namespace HotUpdateABTest.Tests.PlayMode
                     "txtRate", "barShare", "srmLight");
 
                 AssertPages((GComponent)row.GetChild("srmLight"), "state", "unknown", "healthy", "alarm");
-                AssertPages((GComponent)row.GetChild("barShare"), "state", "unknown", "green", "yellow", "red");
+                AssertPages((GComponent)row.GetChild("barShare"), "state", "unknown", "healthy", "warn", "alarm");
             }
             finally
             {
