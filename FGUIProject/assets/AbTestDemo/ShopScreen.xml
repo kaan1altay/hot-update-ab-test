@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="375,667">
   <displayList>
-    <text id="n0_hu6h" name="txtShopTitle" xy="87,20" size="200,49" font="Bell MT" fontSize="36" color="#999999" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" strokeSize="2" singleLine="true" text="Title">
+    <text id="n0_hu6h" name="txtShopTitle" xy="87,20" size="200,49" font="Bell MT" fontSize="36" color="#999999" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" strokeSize="2" singleLine="true" text="Shop">
       <relation target="" sidePair="width-width,center-center,top-top"/>
     </text>
-    <list id="n1_hu6h" name="listOffers" xy="20,76" size="335,470" overflow="scroll" lineGap="5" defaultItem="ui://pupdaecjhu6hh" align="center">
+    <list id="n1_hu6h" name="listOffers" xy="20,76" size="335,470" overflow="scroll" lineGap="5" defaultItem="ui://pupdaecjhu6hh" align="center" autoClearItems="true">
       <relation target="" sidePair="width-width,height-height"/>
       <item/>
       <item/>

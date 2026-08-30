@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="1600,900">
   <displayList>
-    <text id="n0_8sec" name="txtTitle" xy="33,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Title"/>
+    <graph id="n40_66ke" name="graphBg" xy="0,0" size="1600,900" type="rect" lineSize="0" fillColor="#ff330000">
+      <relation target="" sidePair="width-width,height-height"/>
+    </graph>
+    <text id="n0_8sec" name="txtTitle" xy="33,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="LiveOps Console"/>
     <component id="n1_8sec" name="chipSource" src="8sec4" fileName="StatusChip.xml" xy="366,32" group="n7_8sec" touchable="false"/>
     <text id="n2_8sec" name="txtConfigVersion" xy="574,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Config Version"/>
     <text id="n3_8sec" name="txtServer" xy="907,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Server"/>
@@ -16,14 +19,14 @@
       <relation target="" sidePair="bottom-bottom"/>
       <relation target="n8_8sec" sidePair="center-center"/>
     </component>
-    <list id="n11_8sec" name="listLog" xy="443,696" size="1117,190" overflow="scroll" defaultItem="ui://pupdaecj8sec7" align="center">
+    <list id="n11_8sec" name="listLog" xy="451,696" size="1100,201" overflow="scroll" defaultItem="ui://pupdaecj8sec7" align="center" autoClearItems="true">
       <relation target="" sidePair="width-width,center-center,bottom-bottom"/>
       <item controllers="type,1"/>
       <item/>
       <item/>
-      <item/>
+      <item title="LOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOGLOG"/>
     </list>
-    <list id="n12_8sec" name="listMetrics" xy="450,110" size="1100,340" overflow="scroll" margin="10,0,0,0" defaultItem="ui://pupdaecj8sec5">
+    <list id="n12_8sec" name="listMetrics" xy="450,110" size="1100,340" overflow="scroll" margin="10,0,0,0" defaultItem="ui://pupdaecj8sec5" autoClearItems="true">
       <relation target="" sidePair="width-width,right-right,top-top"/>
       <item url="ui://pupdaecj8secc"/>
       <item/>

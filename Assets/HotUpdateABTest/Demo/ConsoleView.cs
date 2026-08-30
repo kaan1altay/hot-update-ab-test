@@ -126,6 +126,12 @@ namespace HotUpdateABTest.Demo
 
             EnsureMetricRows(rows.Count);
 
+            // Flush the list's pending layout before writing any cell. GProgressBar rewrites its own title
+            // from titleType inside HandleSizeChanged, so a title written while a resize is still queued is
+            // silently replaced by a bare percentage one frame later - which is how "49.9% / 50.0%" became
+            // "0%". Sizing everything first means nothing resizes after the write.
+            _listMetrics.EnsureBoundsCorrect();
+
             for (int i = 0; i < _metricRows.Count; i++)
             {
                 var row = _metricRows[i];
@@ -228,7 +234,13 @@ namespace HotUpdateABTest.Demo
             {
                 // Only the first row of an experiment carries its verdict; the light is a property of the
                 // experiment, not of one arm, and repeating it on every row reads as four separate checks.
-                light.visible = first;
+                //
+                // Hidden with alpha rather than visible, deliberately. groupRow lays its children out
+                // horizontally with excludeInvisibles and is centred in the row, so setting visible=false
+                // removed the light's 100px column from the group, made the group narrower, and the centre
+                // relation then shifted every other cell on that row by about half of it - which is exactly
+                // the 50px misalignment on the continuation rows. Alpha leaves the layout untouched.
+                light.alpha = first ? 1f : 0f;
                 if (first) _binder.SelectPage(light.GetController("state"), SrmPage(owner.Srm.State), "srmLight");
             }
         }

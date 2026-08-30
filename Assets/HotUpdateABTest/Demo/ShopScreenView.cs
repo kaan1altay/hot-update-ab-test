@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using FairyGUI;
 using HotUpdateABTest.Core.Presentation;
+using UnityEngine;
 
 namespace HotUpdateABTest.Demo
 {
@@ -52,6 +53,7 @@ namespace HotUpdateABTest.Demo
         private readonly Action<string> _onCta;
         private readonly Func<GComponent> _cardFactory;
         private readonly List<GComponent> _cards = new List<GComponent>();
+        private readonly List<Vector2> _cardBaseSizes = new List<Vector2>();
 
         private GList _list;
         private GObject _cta;
@@ -106,7 +108,7 @@ namespace HotUpdateABTest.Demo
 
             ApplyListLayout(spec.Layout);
 
-            for (int i = 0; i < _cards.Count; i++) ApplyCard(_cards[i], OfferCatalogue.All[i], spec);
+            for (int i = 0; i < _cards.Count; i++) ApplyCard(_cards[i], _cardBaseSizes[i], OfferCatalogue.All[i], spec);
 
             SetCtaText(spec.CtaText);
             SetSpecStrip(spec, rejectionToken);
@@ -118,6 +120,7 @@ namespace HotUpdateABTest.Demo
 
             _list.RemoveChildren();
             _cards.Clear();
+            _cardBaseSizes.Clear();
 
             foreach (var offer in OfferCatalogue.All)
             {
@@ -126,6 +129,11 @@ namespace HotUpdateABTest.Demo
 
                 string offerId = offer.Id;
                 card.onClick.Add(() => _onCta?.Invoke(offerId));
+
+                // The size the card was authored at, captured before anything resizes it. The layout
+                // gears store positions as a fraction of the parent size, computed against exactly this
+                // size, so it is the only size at which applying a page yields the authored coordinates.
+                _cardBaseSizes.Add(new Vector2(card.width, card.height));
 
                 _cards.Add(card);
                 _list.AddChild(card);
@@ -158,14 +166,28 @@ namespace HotUpdateABTest.Demo
             }
         }
 
-        private void ApplyCard(GComponent card, Offer offer, PresentationSpec spec)
+        /// <summary>Applies one spec to one card.</summary>
+        /// <remarks>
+        /// <b>Page first at the base size, then the target size.</b> The authored layout gears use
+        /// <c>positionsInPercent</c>, which means a child ends up at <c>fraction x current parent size</c>
+        /// at the moment the page is applied - and the fractions were computed against the card's authored
+        /// 335x96. Selecting the grid page while the card was already 163x190 multiplied every offset:
+        /// txtPrice's 1.479 landed at 281 in a 190-tall card instead of 142, which put the name and price
+        /// of the top row underneath the row below and pushed the bottom row's past the list's clip.
+        /// Restoring the base size first makes the gear produce the authored coordinates; resizing
+        /// afterwards does not disturb them, because GearXY.UpdateFromRelations deliberately does nothing
+        /// when positions are in percent.
+        /// </remarks>
+        private void ApplyCard(GComponent card, Vector2 baseSize, Offer offer, PresentationSpec spec)
         {
             bool grid = spec.Layout == OfferLayout.Grid;
             int[] size = grid ? GridCardSize : ListCardSize;
 
+            card.SetSize(baseSize.x, baseSize.y);
+            _binder.SelectPage(card.GetController("layout"), grid ? "grid" : "list", "OfferCard");
+
             // The card's own size is set here rather than geared: FairyGUI gears children, not the root.
             card.SetSize(size[0], size[1]);
-            _binder.SelectPage(card.GetController("layout"), grid ? "grid" : "list", "OfferCard");
 
             SetChildText(card, "txtName", offer.Title);
             SetChildText(card, "txtPrice", offer.PriceText);
