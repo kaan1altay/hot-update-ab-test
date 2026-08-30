@@ -40,6 +40,9 @@ namespace HotUpdateABTest.Core.Model
         /// <summary>What happens to an assigned user when the weights change.</summary>
         public StickinessPolicy Stickiness { get; }
 
+        /// <summary>Who qualifies. Applied after layer allocation; see <see cref="AudienceSpec"/>.</summary>
+        public AudienceSpec Audience { get; }
+
         /// <summary>The arms, in declared order. Order is part of the bucketing contract.</summary>
         public IReadOnlyList<VariantDef> Variants => _variants;
 
@@ -54,7 +57,8 @@ namespace HotUpdateABTest.Core.Model
             string salt,
             BucketRange allocation,
             StickinessPolicy stickiness,
-            IEnumerable<VariantDef> variants)
+            IEnumerable<VariantDef> variants,
+            AudienceSpec audience = null)
         {
             Id = id ?? throw new ArgumentNullException(nameof(id));
             LayerId = layerId ?? throw new ArgumentNullException(nameof(layerId));
@@ -62,6 +66,7 @@ namespace HotUpdateABTest.Core.Model
             Status = status;
             Allocation = allocation;
             Stickiness = stickiness;
+            Audience = audience ?? AudienceSpec.Everyone;
 
             if (variants == null) throw new ArgumentNullException(nameof(variants));
             _variants = new List<VariantDef>(variants).ToArray();
