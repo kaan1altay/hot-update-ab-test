@@ -74,6 +74,42 @@ Those 234 core tests are a strict subset of the 315 EditMode ones: the same sour
 the suites would count them twice, so the honest total is 338 distinct tests. `docs/STATUS.md` shows the
 set arithmetic.
 
+### What the tests did not cover, and how that was found
+
+The first hand play-test of the finished demo found three rendering defects. **The suite was green through
+all three**, and the reason is worth more than the badge.
+
+The demo has two UI paths: the authored FairyGUI package, and a programmatic fallback that lets it run
+headless. The suite asserted the two declare **the same child names** — and nothing asserted they **behave**
+alike. That gap is invisible until it matters, because the fallback is deliberately simpler: it has no
+gears, no `GProgressBar`, no groups. It could not reproduce any of the three defects, because it does not
+contain the machinery any of them lived in.
+
+The clearest of the three, as a worked example. The authored offer card positions its children with gears
+set to `positionsInPercent`, which means a child ends up at *fraction × current parent size* at the moment
+a layout page is applied. Those fractions were computed against the card's authored 335×96. The code applied
+the grid page while the card was already resized to 163×190, so `txtName`'s fraction of **1.208 × 190 put it
+at y=229.5 in a 190-tall card** — outside it. The top row's name and price rendered underneath the row
+below; the bottom row's fell past the list's clip. On screen: names on the last row only, prices nowhere. In
+the suite: nothing, because the fallback card has no gears to be in percent mode.
+
+What changed is not more tests of the same kind. It is a fixture that runs **against the authored package
+specifically** — `PlayTestRegressionTests` — asserting behaviour rather than vocabulary: that a card's
+children land inside their own card in both layouts, that every row of the metrics table aligns its
+columns, that the share caption survives a layout pass. Each of the three defects has a test that failed
+before its fix. The boot-time binding validation catches missing *names*; these catch wrong *behaviour*,
+which is the half that was missing.
+
+Two of the three were then fixed twice, and the second fix is the one worth copying. The code learned to
+apply a layout page before resizing, and the gears were taken out of percent mode; the caption writes were
+sequenced so `GProgressBar` could not clobber them, and then the child was renamed from `title` to
+`txtShare` so the bar never adopts it in the first place. Correct sequencing is a rule someone has to keep
+obeying. Removing the mechanism means there is no longer an order to get wrong.
+
+The general lesson, stated because it generalises past this repository: **a stand-in simpler than the thing
+it stands in for cannot test the thing it stands in for.** It is worth knowing which half of your suite is
+which.
+
 ---
 
 ## Honest limits

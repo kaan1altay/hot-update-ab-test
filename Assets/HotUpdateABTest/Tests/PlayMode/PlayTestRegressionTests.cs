@@ -156,27 +156,47 @@ namespace HotUpdateABTest.Tests.PlayMode
         // --- Finding 3: the progress bar overwrites the title --------------------------------------------
 
         [Test]
-        public void ResizingAShareBarStillRewritesItsTitle()
+        public void TheShareCaptionSurvivesAResizeOrIsKnownNotTo()
         {
-            // Documents the trap rather than asserting it away, because it is FairyGUI's behaviour and not
-            // something this code can change: barShare's text child is named "title", so GProgressBar
-            // adopts it as its title object and rewrites it from titleType inside HandleSizeChanged.
+            // GProgressBar adopts a child named literally "title" as its own title object and rewrites it
+            // from titleType inside HandleSizeChanged. So the caption's *name* decides whether a resize can
+            // clobber it, and this asserts whichever is true of the package as authored today.
             //
-            // The mitigation is ordering - the list's layout is flushed before any cell is written, so
-            // nothing resizes after the write. That mitigation is only sound while this remains true, so if
-            // this test ever fails, the flush is no longer needed and should go.
+            // Under "title": the trap applies, and ConsoleView's layout flush is what keeps the demo
+            // correct - ordering, not structure.
+            // Under any other name: the trap cannot apply at all, and the flush is belt to that braces.
+            //
+            // Keeping both branches means the knowledge survives the rename instead of being deleted with
+            // the test, and the day the package changes the assertion follows it rather than going red.
             var row = Authored("MetricsRow");
             var bar = row.GetChild("barShare") as GComponent;
-            var title = bar.GetChild("title");
+            Assert.That(bar, Is.Not.Null);
+
+            var caption = bar.GetChild("txtShare") ?? bar.GetChild("title");
+            Assert.That(caption, Is.Not.Null, "barShare has no caption under either name");
+
+            bool adoptedByTheProgressBar = bar.GetChild("txtShare") == null;
 
             if (bar is GProgressBar progress) progress.value = 49.9;
-            title.text = "49.9% / 50.0%";
-
+            caption.text = "49.9% / 50.0%";
             bar.SetSize(bar.width + 1, bar.height);
 
-            Assert.That(title.text, Is.Not.EqualTo("49.9% / 50.0%"),
-                "GProgressBar no longer rewrites its title on resize; ConsoleView's EnsureBoundsCorrect " +
-                "flush was added only to work around that and can now be removed");
+            if (adoptedByTheProgressBar)
+            {
+                Assert.That(caption.text, Is.Not.EqualTo("49.9% / 50.0%"),
+                    "the caption is named 'title' but survived a resize, so GProgressBar no longer adopts " +
+                    "it; ConsoleView's EnsureBoundsCorrect flush exists only for this and can go");
+            }
+            else
+            {
+                Assert.That(caption.text, Is.EqualTo("49.9% / 50.0%"),
+                    "the caption is named 'txtShare', so nothing should rewrite it - if this fails, " +
+                    "something other than GProgressBar's title handling is touching it");
+            }
+
+            TestContext.WriteLine(adoptedByTheProgressBar
+                ? "barShare's caption is named 'title': the recompute trap applies, mitigated by ordering"
+                : "barShare's caption is named 'txtShare': the recompute trap cannot apply");
 
             row.Dispose();
         }
@@ -203,13 +223,18 @@ namespace HotUpdateABTest.Tests.PlayMode
             var list = UiValidator.Deep(console, "listMetrics") as GList;
             Assert.That(list, Is.Not.Null);
 
+            // Flush any queued layout instead of trusting the frames above to have covered it.
+            // Waiting a fixed number of frames makes the assertion depend on frame cadence, which
+            // differs between a batchmode run and the editor; this makes the read deterministic.
+            list.EnsureBoundsCorrect();
+
             int checkedBars = 0;
             for (int i = 0; i < list.numChildren; i++)
             {
                 if (!(list.GetChildAt(i) is GComponent row)) continue;
                 if (!(row.GetChild("barShare") is GComponent bar)) continue;
 
-                var title = bar.GetChild("title");
+                var title = bar.GetChild("txtShare") ?? bar.GetChild("title");
                 if (title == null) continue;
 
                 checkedBars++;
@@ -218,10 +243,41 @@ namespace HotUpdateABTest.Tests.PlayMode
                     "', which is FairyGUI's auto-percent rather than the share against expected");
             }
 
-            Assert.That(checkedBars, Is.GreaterThan(1), "not enough bars were rendered to be meaningful");
+            Assert.That(checkedBars, Is.GreaterThan(1),
+                "not enough bars were rendered to be meaningful. " + Describe(list));
 
             Object.DestroyImmediate(host);
             yield return null;
+        }
+
+        /// <summary>Names what a metrics list actually holds, so a miss says why rather than only that.</summary>
+        private static string Describe(GList list)
+        {
+            if (list == null) return "the list itself is null";
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("list has ").Append(list.numChildren).Append(" children:");
+
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                var child = list.GetChildAt(i);
+                sb.AppendLine();
+                sb.Append("  [").Append(i).Append("] ").Append(child.GetType().Name)
+                  .Append(" visible=").Append(child.visible);
+
+                if (!(child is GComponent row)) continue;
+
+                var bar = row.GetChild("barShare");
+                sb.Append(" barShare=").Append(bar == null ? "MISSING" : bar.GetType().Name);
+
+                if (bar is GComponent barComponent)
+                {
+                    var caption = barComponent.GetChild("txtShare") ?? barComponent.GetChild("title");
+                    sb.Append(" caption=").Append(caption == null ? "MISSING" : "'" + caption.text + "'");
+                }
+            }
+
+            return sb.ToString();
         }
 
         private static void Press(GComponent console, string buttonName)
@@ -248,13 +304,15 @@ namespace HotUpdateABTest.Tests.PlayMode
             var list = console.GetChild("listMetrics") as GList;
             Assert.That(list, Is.Not.Null);
 
+            list.EnsureBoundsCorrect();
+
             bool checkedAny = false;
             for (int i = 0; i < list.numChildren; i++)
             {
                 if (!(list.GetChildAt(i) is GComponent row)) continue;
                 if (!(row.GetChild("barShare") is GComponent bar)) continue;
 
-                var title = bar.GetChild("title");
+                var title = bar.GetChild("txtShare") ?? bar.GetChild("title");
                 if (title == null) continue;
 
                 checkedAny = true;
@@ -262,7 +320,7 @@ namespace HotUpdateABTest.Tests.PlayMode
                     "an experiment with nobody exposed shows '" + title.text + "' where a dash belongs");
             }
 
-            Assert.That(checkedAny, Is.True, "no bar was found to check");
+            Assert.That(checkedAny, Is.True, "no bar was found to check. " + Describe(list));
 
             GRoot.inst.RemoveChild(console);
             console.Dispose();

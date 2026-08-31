@@ -71,9 +71,22 @@ dotnet test dotnet/HotUpdateABTest.sln
 
 `TestResults/` is gitignored.
 
+**Do not chain the EditMode and PlayMode invocations in one shell command.** Launching the second
+Unity process immediately after the first exits can have it run the *previous* compilation of a test
+assembly: the first process is still writing `Library/ScriptAssemblies` as the second starts. This is
+not theoretical - it cost an afternoon here. Two PlayMode tests reported failures whose assertion text
+did not match any assertion in the source, because the source had been edited and the run was
+executing the build from before the edit. The same source, run as its own invocation, was green
+eleven times.
+
+The tell is worth knowing because the failure is indistinguishable from a real one: a red suite that
+is measuring code you no longer have. If a failure message does not correspond to the assertion you
+can read on disk, suspect the build before you suspect the test. Run each platform as a separate
+command and let the first fully exit.
+
 ## Test results
 
-Last run 2026-08-30, all three suites green.
+Last run 2026-08-31, all three suites green.
 
 | Suite | Tests | Result |
 | --- | --- | --- |
@@ -301,12 +314,20 @@ PlayMode suite rather than shipping. `UiContract` is the single list behind the 
 tests and the fallback — and the package tests call the same validator, because a test with its own copy of
 the matching logic can pass on a laxer rule than the thing it guards.
 
-**`barShare` shows observed share against expected**, titled `49.9% (exp 50.0%)`, not the funnel rate. It
+**`barShare` shows observed share against expected**, captioned `49.9% / 50.0%`, not the funnel rate. It
 sits beside the ratio light and explains it: the light says the split is not plausible, the bars say which
 arm is over-represented and by how much. The funnel signal is not lost — it is read from the `assigned` and
 `exposed` columns side by side, which is also what distinguishes the two breakage modes, and the test that
-asserts that distinction reads the data directly. Value is set before title, because `GProgressBar.Update`
-rewrites the title from its `titleType` whenever the value changes.
+asserts that distinction reads the data directly.
+
+**The caption child is named `txtShare`, not `title`.** `GProgressBar` adopts a child named literally
+`title` as its own title object and rewrites it from `titleType` inside `HandleSizeChanged`, so under that
+name any layout pass — not merely a `value` write — could replace the caption with a bare percentage. The
+first fix was to sequence the writes so the caption was set last. That worked, and it left the trap armed
+for whoever next laid out a row. Renaming the child removes the trap instead of stepping around it: there
+is no ordering left to get wrong. `ConsoleView` resolves `txtShare` and then `title`, so an older package
+still binds, and `TheShareCaptionSurvivesAResizeOrIsKnownNotTo` asserts whichever of the two the package on
+disk actually uses rather than going red when it changes.
 
 **`MaxBadgeLength` is 10, lowered from 16.** Because the reader rejects rather than truncates, whatever the
 constant says is guaranteed to arrive on screen, so it has to be a length the authored card can hold at a

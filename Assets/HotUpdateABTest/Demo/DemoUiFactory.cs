@@ -330,7 +330,7 @@ namespace HotUpdateABTest.Demo
 
             var fill = Rect(130, 10, new Color32(0x00, 0xCC, 0x00, 0xFF), "bar");
             bar.AddChild(fill);
-            bar.AddChild(Text("title", "", 0, -12, 130, 24, 14, Ink, true));
+            bar.AddChild(Text("txtShare", "", 0, -12, 130, 24, 14, Ink, true));
             AddNamedController(bar, "state", "unknown", "healthy", "warn", "alarm");
             row.AddChild(bar);
 

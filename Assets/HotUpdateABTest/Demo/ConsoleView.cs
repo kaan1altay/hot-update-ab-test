@@ -223,7 +223,7 @@ namespace HotUpdateABTest.Demo
                 // meant to scan the smallest text in the table. The word moved into the column header
                 // (MetricsHeader.txtBarRate reads "share / expected"), which is where a unit belongs in a
                 // table rather than repeated in every row.
-                SetChildText(bar, "title", owner.UsersExposed == 0
+                SetShareTitle(bar, owner.UsersExposed == 0
                     ? "-"
                     : Percent(variant.ObservedShare) + " / " + Percent(variant.ExpectedShare));
 
@@ -312,6 +312,33 @@ namespace HotUpdateABTest.Demo
         {
             var child = parent.GetChild(name);
             if (child != null) child.text = text;
+        }
+
+        /// <summary>Writes the share bar's caption, whichever name the package gives that text field.</summary>
+        /// <remarks>
+        /// <para>
+        /// <c>txtShare</c> first, <c>title</c> second. The distinction is not cosmetic: <c>GProgressBar</c>
+        /// adopts a child called literally <c>title</c> as its own title object and rewrites it from
+        /// <c>titleType</c> inside <c>HandleSizeChanged</c>, so under that name anything written here is
+        /// liable to be replaced by a bare percentage the next time the bar is resized. Any other name is
+        /// an ordinary text field the component never touches.
+        /// </para>
+        /// <para>
+        /// Both are accepted so the code does not need a flag day with the package. When the field is not
+        /// found under either name the binder reports it once, rather than the caption silently never
+        /// updating - which is exactly how the original defect presented.
+        /// </para>
+        /// </remarks>
+        private void SetShareTitle(GComponent bar, string text)
+        {
+            var caption = bar.GetChild("txtShare") ?? bar.GetChild("title");
+            if (caption == null)
+            {
+                _binder.Child<GObject>(bar, "txtShare", "barShare");
+                return;
+            }
+
+            caption.text = text;
         }
 
         private static string Percent(double value) => (value * 100.0).ToString("0.0") + "%";

@@ -101,6 +101,7 @@ namespace HotUpdateABTest.Demo
             new UiExpectation("MetricsRow", "child", "barShare"),
             new UiExpectation("MetricsRow", "child", "srmLight"),
 
+            new UiExpectation("barShare", "child", "txtShare"),
             new UiExpectation("barShare", "controller", "state"),
             new UiExpectation("barShare", "page", "unknown", "state"),
             new UiExpectation("barShare", "page", "healthy", "state"),

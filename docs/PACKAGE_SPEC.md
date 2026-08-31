@@ -121,7 +121,8 @@ control needs to tell "the server said so" from "we cannot reach the server".
 
 ### `barShare` — 50 × 10, ProgressBar
 
-Controller `state`, pages `unknown` / `healthy` / `warn` / `alarm`, plus a `title` text.
+Controller `state`, pages `unknown` / `healthy` / `warn` / `alarm`, plus a caption text named
+`txtShare`.
 
 **Shows observed share against expected**, so it sits beside the ratio light and explains it: the light says
 the split is not plausible, the bars say which arm is over- or under-represented and by how much. The page
@@ -135,9 +136,15 @@ clipped it. The current form measures 114px at its widest possible value, and `S
 keeps at least ten pixels of slack. A unit belongs in a column header rather than repeated in every row
 anyway.
 
-**Set `value` before `title`.** `GProgressBar.Update` rewrites the title from its `titleType` whenever the
-value changes, so the other order has the title silently replaced with a bare percentage. No `TweenValue`;
-`unknown` renders a dash rather than a number.
+**The caption is named `txtShare`, not `title`, and that is load-bearing.** `GProgressBar` adopts a child
+named literally `title` as its own title object and rewrites it from `titleType` inside
+`HandleSizeChanged` — so under the old name any layout pass, not merely a `value` write, could replace
+`49.9% / 50.0%` with a bare percentage. Sequencing the writes around it worked, but it left the trap armed
+for whoever next laid out a row. Renaming the child disarms it structurally: there is no ordering left to
+get wrong. `ConsoleView` still resolves `txtShare` and then `title`, so an older package still binds, and
+`TheShareCaptionSurvivesAResizeOrIsKnownNotTo` asserts whichever of the two is true of the package on
+disk rather than going red when it changes. No `TweenValue`; `unknown` renders a dash rather than a
+number.
 
 The four page names deliberately match `SrmLight`, so a reader scanning a row does not learn two colour
 languages. One asymmetry follows: `warn` is reachable on the bar and never on the light. An arm can be
