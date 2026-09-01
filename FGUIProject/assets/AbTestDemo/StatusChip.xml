@@ -6,7 +6,7 @@
       <gearColor controller="state" pages="0,1,2,3" values="#009900|#ff9900|#666666|#660000"/>
       <relation target="" sidePair="width-width,height-height"/>
     </graph>
-    <text id="n0_8sec" name="title" xy="0,0" size="200,34" fontSize="12" autoSize="none" text="">
+    <text id="n0_8sec" name="title" xy="0,0" size="200,34" font="Nirmala UI" fontSize="24" align="center" vAlign="middle" autoSize="none" bold="true" text="Live">
       <relation target="" sidePair="width-width,height-height"/>
     </text>
   </displayList>

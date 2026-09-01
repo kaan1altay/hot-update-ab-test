@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="1600,900">
   <displayList>
-    <graph id="n40_66ke" name="graphBg" xy="0,0" size="1600,900" type="rect" lineSize="0" fillColor="#ff330000">
+    <graph id="n40_66ke" name="graphBg" xy="0,0" size="1600,900" type="rect" lineSize="0" fillColor="#ff00001e">
       <relation target="" sidePair="width-width,height-height"/>
     </graph>
-    <text id="n0_8sec" name="txtTitle" xy="33,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="LiveOps Console"/>
+    <text id="n0_8sec" name="txtTitle" xy="33,4" size="325,90" group="n7_8sec" font="Nirmala UI" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="LiveOps Console"/>
     <component id="n1_8sec" name="chipSource" src="8sec4" fileName="StatusChip.xml" xy="366,32" group="n7_8sec" touchable="false"/>
-    <text id="n2_8sec" name="txtConfigVersion" xy="574,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Config Version"/>
-    <text id="n3_8sec" name="txtServer" xy="907,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Server"/>
-    <text id="n38_8sec" name="txtScenario" xy="1240,4" size="325,90" group="n7_8sec" font="Bell MT" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Scenario"/>
+    <text id="n2_8sec" name="txtConfigVersion" xy="574,4" size="325,90" group="n7_8sec" font="Nirmala UI" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Config Version"/>
+    <text id="n3_8sec" name="txtServer" xy="907,4" size="325,90" group="n7_8sec" font="Nirmala UI" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Server"/>
+    <text id="n38_8sec" name="txtScenario" xy="1240,4" size="325,90" group="n7_8sec" font="Nirmala UI" fontSize="36" color="#666666" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="Scenario"/>
     <group id="n7_8sec" name="groupTopBar" xy="33,4" size="1532,90" advanced="true" layout="hz" colGap="8">
       <relation target="" sidePair="center-center,top-top"/>
     </group>

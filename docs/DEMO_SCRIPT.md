@@ -133,13 +133,21 @@ normal** to recover — the chip returns to **LIVE**.
 
 ---
 
-## 8. A Lua patch adds a variant to a running experiment
+## 8. A Lua patch changes a running experiment
 
-The patch folder path is in the log from startup — under `AppData/LocalLow/.../abtest-patches/`. Drop this
-in as `flash_sale.lua`:
+Ready-made patches are in `examples/lua-patches/`, with a README covering the folder, the load order
+and the sandbox. `ExampleLuaPatchTests` runs all three through the real sandbox, so what is on disk is
+what is described here.
+
+The patch folder path is in the log from startup — under `AppData/LocalLow/.../abtest-patches/`. Copy
+`10-flash-sale.lua` into it. The body is this:
 
 ```lua
 register('shop.pricing_cta.urgency', function(ctx)
+    if not ctx.has_original_price then
+        return { priceStyle = 'plain', ctaText = 'Grab it now' }
+    end
+
     return {
         priceStyle = 'discounted',
         badgeText = 'FLASH',
@@ -147,6 +155,10 @@ register('shop.pricing_cta.urgency', function(ctx)
     }
 end)
 ```
+
+Note what this does: it re-registers a name that already exists, so it **replaces** what the `urgency`
+arm presents. Patches load after the baseline and later registrations win, which is why one mechanism
+covers both changing a variant and adding one.
 
 Press **Reload Lua patches**.
 
@@ -157,9 +169,17 @@ many files loaded and how many behaviors are registered.
 Delete the file and press **Reload Lua patches** again: the strip returns to `LIMITED` and `Claim offer`. The
 patch channel has a way back, which is the half of hot update people forget to demonstrate.
 
+Adding a genuinely new *arm* is a two-part change and only half of it is hot. `30-new-variant.lua`
+registers `shop.pricing_cta.flash_sale`, a name in no C# file, and the behaviour count in the log goes
+up — but nothing on screen moves, because the resolver picks variants from the config and no config
+declares that arm. A patch channel that could enrol users into an experiment nobody configured would
+be holding authority it should not have. Seeing that arm live means editing the served config and
+rebuilding. Worth saying on camera: the behaviour ships hot, the decision to run an arm does not.
+
 ### 8b. A bad patch
 
-Change `badgeText` to something eleven characters long, or `layout = 'carousel'`, and reload.
+Copy `20-rejected-spec.lua` in and reload. It breaks the badge length cap; two commented-out
+alternatives in the file break the enum and the layer ownership rule instead.
 
 **The tell:** the spec strip reads the baseline **followed by a marker** — `[FALLBACK: text too long]` or
 `[FALLBACK: bad enum value]`. That marker is the entire reason the strip exists: a rejected spec renders

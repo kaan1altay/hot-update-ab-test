@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="1090,40">
   <displayList>
-    <text id="n0_8sec" name="txtExperiment" xy="66,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtExperiment"/>
+    <text id="n0_8sec" name="txtExperiment" xy="66,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtExperiment"/>
     <graph id="n9_8sec" name="graphLineSeperator1" xy="138,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
-    <text id="n1_8sec" name="txtVariant" xy="210,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtVariant"/>
+    <text id="n1_8sec" name="txtVariant" xy="210,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtVariant"/>
     <graph id="n10_8sec" name="graphLineSeperator2" xy="282,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
-    <text id="n2_8sec" name="txtAssignments" xy="354,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtAssignments"/>
+    <text id="n2_8sec" name="txtAssignments" xy="354,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtAssignments"/>
     <graph id="n11_8sec" name="graphLineSeperator3" xy="426,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
-    <text id="n3_8sec" name="txtExposures" xy="498,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtExposures"/>
+    <text id="n3_8sec" name="txtExposures" xy="498,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtExposures"/>
     <graph id="n12_8sec" name="graphLineSeperator4" xy="570,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
-    <text id="n4_8sec" name="txtConversions" xy="642,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtConversions"/>
+    <text id="n4_8sec" name="txtConversions" xy="642,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtConversions"/>
     <graph id="n13_8sec" name="graphLineSeperator5" xy="714,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
-    <text id="n5_8sec" name="txtRate" xy="786,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Bell MT" fontSize="18" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtRate"/>
+    <text id="n5_8sec" name="txtRate" xy="786,20" pivot="0.5,0.5" anchor="true" size="140,40" group="n17_8sec" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" singleLine="true" text="txtRate"/>
     <graph id="n14_8sec" name="graphLineSeperator6" xy="858,20" pivot="0.5,0.5" anchor="true" size="2,40" group="n17_8sec" type="rect" lineSize="0" fillColor="#ff660000"/>
     <component id="n8_8sec" name="barShare" src="8sec6" fileName="barShare.xml" xy="925,19" pivot="0.5,0.5" anchor="true" size="130,25" group="n17_8sec" touchable="false">
       <ProgressBar value="50" max="100"/>

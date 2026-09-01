@@ -2,12 +2,12 @@
 <component size="1100,34" extention="Label">
   <controller name="type" exported="true" pages="0,log,1,warn,2,err" selected="0"/>
   <displayList>
-    <text id="n0_8sec" name="title" xy="106,0" size="974,34" font="Bell MT" fontSize="24" color="#ffffff" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" autoSize="height" strokeColor="#000000" text="LOGLOGLOGLOGLOGLOGLOGLOG">
+    <text id="n0_8sec" name="title" xy="107,0" size="973,34" font="Nirmala UI" fontSize="24" color="#ffffff" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" autoSize="height" strokeColor="#000000" text="LOGLOGLOGLOGLOGLOGLOGLOG">
       <gearColor controller="type" pages="0,1,2" values="#ffffff,#000000|#ffff99,#000000|#b20000,#000000"/>
       <relation target="" sidePair="width-width,right-right"/>
       <relation target="n1_8sec" sidePair="leftext-right"/>
     </text>
-    <text id="n1_8sec" name="titleLogHeader" xy="25,0" size="55,34" font="Bell MT" fontSize="24" color="#cccccc" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" bold="true" strokeColor="#000000" text="Log:">
+    <text id="n1_8sec" name="titleLogHeader" xy="25,0" size="56,34" font="Nirmala UI" fontSize="24" color="#cccccc" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" bold="true" strokeColor="#000000" text="Log:">
       <gearColor controller="type" pages="0,1" values="#cccccc,#000000|#ffe100,#000000" default="#ff3300,#000000"/>
       <gearText controller="type" pages="1,2" values="Warn:|Error" default="Log:"/>
       <relation target="" sidePair="middle-middle"/>

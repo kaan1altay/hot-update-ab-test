@@ -9,7 +9,7 @@
       <gearColor controller="state" pages="4,0,2" values="#666666|#00cc00|#ff0000" default="#ffcc00"/>
       <relation target="" sidePair="width-width,height-height%,middle-middle"/>
     </graph>
-    <text id="n2_8sec" name="txtShare" xy="0,-10" size="50,24" fontSize="16" align="center" vAlign="middle" ubb="true" autoSize="none" bold="true" singleLine="true" text="">
+    <text id="n2_8sec" name="txtShare" xy="0,-10" size="50,24" fontSize="16" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" bold="true" strokeColor="#000000" singleLine="true" text="">
       <relation target="" sidePair="width-width,height-height%,middle-middle"/>
     </text>
   </displayList>

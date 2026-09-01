@@ -20,11 +20,11 @@
       <gearDisplay2 controller="color" pages="0" condition="0"/>
       <relation target="" sidePair="width-width,height-height"/>
     </graph>
-    <text id="n3_8sec" name="titleOn" xy="5,-20" size="190,90" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" strokeColor="#000000" strokeSize="2" text="Stop server">
+    <text id="n3_8sec" name="titleOn" xy="5,-20" size="190,90" font="Nirmala UI" fontSize="18" color="#cccccc" align="center" vAlign="middle" ubb="true" autoSize="none" strokeColor="#000000" strokeSize="2" text="Stop server">
       <gearDisplay controller="state" pages="1"/>
       <relation target="" sidePair="width-width,height-height,center-center,middle-middle"/>
     </text>
-    <text id="n5_8sec" name="titleOff" xy="5,-20" size="190,90" fontSize="18" color="#ff9900" align="center" vAlign="middle" ubb="true" autoSize="none" strokeColor="#000000" strokeSize="2" text="Start server">
+    <text id="n5_8sec" name="titleOff" xy="5,-20" size="190,90" font="Nirmala UI" fontSize="18" color="#ff9900" align="center" vAlign="middle" ubb="true" autoSize="none" strokeColor="#000000" strokeSize="2" text="Start server">
       <gearDisplay controller="state" pages="0"/>
       <relation target="" sidePair="width-width,height-height,center-center,middle-middle"/>
     </text>
