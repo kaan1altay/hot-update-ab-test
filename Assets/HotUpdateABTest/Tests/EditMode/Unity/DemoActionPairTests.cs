@@ -65,6 +65,81 @@ namespace HotUpdateABTest.Tests.Unity
             return total;
         }
 
+        // --- second play-test pass, findings 1 and 3: what a second Simulate press can and cannot do ---
+
+        [Test]
+        public void SimulatingTwiceCanStillMoveTheRatioVerdict()
+        {
+            // Break, simulate, fix, simulate, break, simulate. On camera the light went red, then green,
+            // then stayed green no matter how much skew arrived afterwards.
+            //
+            // The aggregator is not at fault - MetricsAggregatorTests shows it moves the verdict happily
+            // when each run brings fresh identities. The simulator reuses sim-0..4999 on every press, and
+            // UsersExposed is a set of user ids, so after the first run the exposed population can never
+            // grow again and no later run can change what the ratio check sees.
+            _demo.OnButton("btnScenarioNormal");
+
+            _demo.SetExposureSkipping(true);
+            _demo.SimulateUsers(2000);
+            Assert.That(Verdict(), Is.EqualTo(SrmState.Alarm), "the first broken run alarms");
+
+            _demo.SetExposureSkipping(false);
+            _demo.SimulateUsers(2000);
+
+            _demo.SetExposureSkipping(true);
+            _demo.SimulateUsers(2000);
+
+            Assert.That(Verdict(), Is.EqualTo(SrmState.Alarm),
+                "a third run with the fault back on must be visible, not masked by the first two");
+        }
+
+        [Test]
+        public void EachSimulateRunAddsToTheExposedPopulation()
+        {
+            // The property underneath it. "Simulate 5000 users" that adds nobody the second time is a
+            // button whose label is false, and every count downstream inherits that.
+            _demo.OnButton("btnScenarioNormal");
+
+            _demo.SimulateUsers(500);
+            long afterFirst = ExposedUsers();
+
+            _demo.SimulateUsers(500);
+            long afterSecond = ExposedUsers();
+
+            Assert.That(afterSecond, Is.GreaterThan(afterFirst),
+                "the second run exposed " + (afterSecond - afterFirst) + " further people");
+        }
+
+        [Test]
+        public void TheConversionRateStaysARateAcrossRepeatedRuns()
+        {
+            // Four presses took it to 20.6, 41.1, 61.7, 82.2 percent on screen.
+            _demo.OnButton("btnScenarioNormal");
+
+            for (int run = 0; run < 6; run++) _demo.SimulateUsers(1000);
+
+            foreach (var experiment in _demo.BuildReport().Experiments)
+            {
+                foreach (var variant in experiment.Variants)
+                {
+                    Assert.That(variant.ConversionRate, Is.InRange(0.0, 1.0),
+                        experiment.ExperimentId + "/" + variant.VariantId + " reads " +
+                        variant.ConversionRate.ToString("P1"));
+                }
+            }
+        }
+
+        private SrmState Verdict()
+        {
+            foreach (var experiment in _demo.BuildReport().Experiments)
+            {
+                if (experiment.ExperimentId == "exp_pricing_cta") return experiment.Srm.State;
+            }
+
+            Assert.Fail("no pricing experiment in the report");
+            return SrmState.Unknown;
+        }
+
         // --- server ---------------------------------------------------------------------------------
 
         [Test]

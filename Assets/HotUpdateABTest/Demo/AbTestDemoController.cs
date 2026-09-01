@@ -270,7 +270,11 @@ namespace HotUpdateABTest.Demo
 
             for (int i = 0; i < count; i++)
             {
-                string userId = "sim-" + i;
+                // Fresh identities per run. Reusing sim-0..4999 made the second press a no-op for every
+                // distinct-user count: UsersExposed is a set of ids, so once everyone had been exposed
+                // the population could not grow and no later run could move the ratio verdict - the
+                // light went red, then green, and then stayed green through any amount of new skew.
+                string userId = "sim-" + _simulationRun + "-" + i;
                 var user = new UserContext(userId, accountLevel: 3 + (i % 5), platform: "editor", country: "TR");
                 var session = SessionId.ForSimulatedUser(userId, _simulationRun);
 

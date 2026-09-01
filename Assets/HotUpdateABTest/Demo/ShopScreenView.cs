@@ -163,6 +163,13 @@ namespace HotUpdateABTest.Demo
             {
                 _list.layout = ListLayoutType.SingleColumn;
                 _list.lineGap = GridGap;
+
+                // GList.DoLayout writes only child.y under SingleColumn (GList.cs, the SingleColumn
+                // branch) - it never assigns child.x. Every x the FlowHorizontal pass wrote therefore
+                // survives the switch, so the cards that sat in the grid's second column stay at
+                // 163 + 9 = 172 while the first column's sit at 0, and the list renders as a zigzag.
+                // Nothing downstream will clear them, so clear them here.
+                for (int i = 0; i < _list.numChildren; i++) _list.GetChildAt(i).x = 0f;
             }
         }
 

@@ -35,7 +35,18 @@ namespace HotUpdateABTest.Core.Telemetry
         /// tells you nothing about whether the treatment works, and including them would drag every arm's
         /// rate toward zero in proportion to how often the screen went unopened.
         /// </remarks>
-        public double ConversionRate => UsersExposed == 0 ? 0 : Conversions / (double)UsersExposed;
+        public long UsersConverted { get; internal set; }
+
+        /// <summary>Converted people over exposed people.</summary>
+        /// <remarks>
+        /// Both halves count <i>people</i>. The obvious version divides the conversion event count by the
+        /// exposed user count, and that is not a ratio of anything: one person buying twice pushes it over
+        /// 100%, and repeated demo runs walked it to 20.6, 41.1, 61.7 and 82.2 percent because the
+        /// numerator kept counting events while the denominator, a set of user ids, had stopped growing.
+        /// The event count is still reported as <see cref="Conversions"/>; it is simply not the numerator
+        /// of a per-user rate.
+        /// </remarks>
+        public double ConversionRate => UsersExposed == 0 ? 0 : UsersConverted / (double)UsersExposed;
 
         /// <summary>
         /// Share of assigned users who went on to be exposed, or 0 when nobody was assigned.
@@ -151,6 +162,7 @@ namespace HotUpdateABTest.Core.Telemetry
 
             public readonly HashSet<string>[] UsersAssigned = NewSets();
             public readonly HashSet<string>[] UsersExposed = NewSets();
+            public readonly HashSet<string>[] UsersConverted = NewSets();
 
             private static HashSet<string>[] NewSets()
             {
@@ -198,6 +210,7 @@ namespace HotUpdateABTest.Core.Telemetry
 
                 case AnalyticsEventKind.Conversion:
                     arm.Conversions[bucket]++;
+                    arm.UsersConverted[bucket].Add(analyticsEvent.UserId);
                     break;
             }
         }
@@ -396,6 +409,7 @@ namespace HotUpdateABTest.Core.Telemetry
             metrics.Conversions = SumAccepted(counters.Conversions, population);
             metrics.UsersAssigned = CountDistinct(counters.UsersAssigned, population);
             metrics.UsersExposed = CountDistinct(counters.UsersExposed, population);
+            metrics.UsersConverted = CountDistinct(counters.UsersConverted, population);
 
             return metrics;
         }

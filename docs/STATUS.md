@@ -52,6 +52,44 @@ twice. **The Unity batchmode run is the authority, and nothing is pushed until b
 
 ---
 
+## Second play-test pass — the first three findings
+
+Twenty-five checks by hand against the authored package, fourteen findings. Three are fixed here; the
+rest are queued. Each fix has a test that failed before it, and in each case the reported symptom and the
+actual mechanism turned out to be different things.
+
+**A conversion rate that passed 100%.** Four Simulate presses read 20.6, 41.1, 61.7, 82.2 percent. The
+numerator counted conversion *events* and the denominator counted distinct exposed *people*, so it was
+not a ratio of anything: implied denominators of 2461, 2467, 2465, 2467 against a numerator climbing by
+507 a run. `UsersConverted` now counts people and the rate is people over people; `Conversions` still
+reports the event count, because two purchases by one person is a real fact — it is just not the
+numerator of a per-user rate. A reproduction drove it to 800%.
+
+**A ratio light that could not go red twice.** Break, simulate, fix, simulate, break, simulate: red,
+then green, then green forever. The aggregator was not at fault — given fresh identities each run it
+moves the verdict happily, and a test asserts that. The demo's simulator reused `sim-0..4999` on every
+press, and `UsersExposed` is a set of user ids, so after the first run the exposed population could not
+grow and no later run could change what the check saw. The failing test said it plainly: *the second run
+exposed 0 further people*. Identities are now per-run.
+
+That is also why the first fix and the second are independent. Fresh identities would have hidden the
+rate bug without fixing it: one person converting in two sessions still produced 200%.
+
+**A list that laid its cards out in a zigzag.** Every second card sat 172px right of the others. That is
+`163 + 9` — the grid card width plus the grid gap — and the cause is in FairyGUI rather than in the
+config: `GList.DoLayout` under `SingleColumn` assigns `child.y` and never assigns `child.x`. Every x the
+`FlowHorizontal` pass wrote therefore survives the switch, and the cards that had been in the grid's
+second column stay where the grid left them. Nothing downstream clears them, so `ApplyListLayout` does.
+
+The reason this one is worth recording is that **the first reproduction passed**. It applied grid, then
+list, then flushed layout once — so the grid pass never ran, no stale x was ever written, and there was
+nothing to inherit. A test that does not let the wrong thing happen cannot catch it. Flushing between
+the two applications makes the standalone test fail without the fix, which was verified by removing the
+fix and watching both tests go red.
+
+`list` is the baseline layout — what renders with no experiment applied and after every rejected spec —
+so this was on screen in the kill-switch and fallback shots.
+
 ## Running the tests
 
 **The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
@@ -86,31 +124,31 @@ command and let the first fully exit.
 
 ## Test results
 
-Last run 2026-08-31, all three suites green.
+Last run 2026-09-02, all three suites green.
 
 | Suite | Tests | Result |
 | --- | --- | --- |
-| `dotnet test` (engine-free core) | 234 | 234 passed, ~12 s |
-| Unity EditMode batchmode | 315 | 315 passed, 0 skipped |
-| Unity PlayMode batchmode | 23 | 23 passed |
+| `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
+| Unity EditMode batchmode | 330 | 330 passed, 0 skipped |
+| Unity PlayMode batchmode | 26 | 26 passed |
 
 ### How the suites overlap
 
-**338 distinct tests.** Verified by set arithmetic on fully-qualified test names from the three result
-files, not by subtracting counts:
+**356 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
-| Core tests run by `dotnet test` **and** again inside Unity | **234** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **81** | 234 + 81 = the 315 EditMode total |
-| PlayMode tests | **23** | no overlap with EditMode |
-| **Distinct** | **338** | |
+| Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **92** | 238 + 92 = the 330 EditMode total |
+| PlayMode tests | **26** | no overlap with EditMode |
+| **Distinct** | **356** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 572, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 594, which counts the core tests
 twice. Do not quote it.**
 
-The soak accounts for most of the core suite's twelve seconds; everything else is about one.
+The soak accounts for most of the core suite's fifteen seconds; everything else is about one.
 
 Swap `-testPlatform EditMode` for `-testPlatform PlayMode` in the command above to run the UI suite.
 

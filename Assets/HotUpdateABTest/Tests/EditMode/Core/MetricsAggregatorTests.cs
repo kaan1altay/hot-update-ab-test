@@ -20,6 +20,91 @@ namespace HotUpdateABTest.Tests.Core
             _h = new TelemetryHarness();
         }
 
+        // --- second play-test pass, finding 1: the rate is a ratio of two different units ---------------
+
+        [Test]
+        public void AConversionRateCannotExceedOneHundredPercent()
+        {
+            // Pressing Simulate four times took the rate to 20.6, 41.1, 61.7, 82.2 percent - it grows
+            // linearly with the run count and passes 100% on run six. A rate is a ratio; this one is not
+            // bounded, so it is not a rate. The numerator counts conversion events and the denominator
+            // counts distinct exposed people, and those are different units.
+            for (int run = 1; run <= 8; run++)
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    _h.Visit("user-" + i, convert: true, session: SessionId.ForSimulatedUser("user-" + i, run));
+                }
+            }
+
+            var arm = _h.Arm("exp_offer_layout", "control");
+
+            Assert.That(arm.ConversionRate, Is.LessThanOrEqualTo(1.0),
+                "the rate reads " + arm.ConversionRate.ToString("P1") + " from " + arm.Conversions +
+                " conversion events over " + arm.UsersExposed + " exposed people");
+        }
+
+        [Test]
+        public void ConvertingTwiceInTwoSessionsCountsOnePersonNotTwo()
+        {
+            // The unit the denominator uses. One person, exposed once, converting in two sessions is one
+            // converted person out of one exposed person - not two out of one.
+            var assignment = _h.Visit("solo", convert: true, session: SessionId.ForSimulatedUser("solo", 1));
+            _h.Visit("solo", convert: true, session: SessionId.ForSimulatedUser("solo", 2));
+
+            // Whichever arm the hash put them in; the point is the unit, not the bucket.
+            var arm = _h.Arm("exp_offer_layout", assignment.VariantId);
+
+            Assert.That(arm.UsersExposed, Is.EqualTo(1), "one person was exposed");
+            Assert.That(arm.ConversionRate, Is.EqualTo(1.0).Within(0.001),
+                "one of the one exposed people converted, whatever the event count says");
+        }
+
+        [Test]
+        public void TheRawConversionEventCountIsStillReported()
+        {
+            // Fixing the rate must not lose the event count. Two purchases by one person is a real fact
+            // and the panel shows it; it is just not the numerator of a per-user rate.
+            var assignment = _h.Visit("solo", convert: true, session: SessionId.ForSimulatedUser("solo", 1));
+            _h.Visit("solo", convert: true, session: SessionId.ForSimulatedUser("solo", 2));
+
+            Assert.That(_h.Arm("exp_offer_layout", assignment.VariantId).Conversions, Is.EqualTo(2));
+        }
+
+        // --- second play-test pass, finding 3: a frozen population cannot change its verdict ------------
+
+        [Test]
+        public void ASecondRunOfFreshTrafficCanStillMoveTheRatioVerdict()
+        {
+            // The aggregator half of finding 3, and it passes: given fresh identities each run, a later
+            // run of skewed traffic does move the verdict. That is what localises the defect to the
+            // demo's simulator, which reuses sim-0..4999 on every press - see
+            // SimulatingTwiceCanStillMoveTheRatioVerdict in the demo tests for the failing half.
+            _h.SuppressExposureForVariant = "treatment";
+            Population(1, 2000);
+            Assert.That(_h.Experiment("exp_offer_layout").Srm.State, Is.EqualTo(SrmState.Alarm),
+                "the first broken run alarms");
+
+            _h.SuppressExposureForVariant = null;
+            Population(2, 2000);
+
+            _h.SuppressExposureForVariant = "treatment";
+            Population(3, 2000);
+
+            Assert.That(_h.Experiment("exp_offer_layout").Srm.State, Is.EqualTo(SrmState.Alarm),
+                "a third run with the fault back on must still be visible");
+        }
+
+        /// <summary>One run of fresh identities, the way a Simulate press should behave.</summary>
+        private void Population(int run, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                string userId = "run" + run + "-user-" + i;
+                _h.Visit(userId, session: SessionId.ForSimulatedUser(userId, run));
+            }
+        }
+
         // --- the two breakage buttons, and why each needs a different signal --------------------------
 
         [Test]

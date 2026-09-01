@@ -131,6 +131,129 @@ namespace HotUpdateABTest.Tests.PlayMode
             screen.Dispose();
         }
 
+        // --- Second pass, finding 5: list layout offsets every second card ------------------------------
+
+        [Test]
+        public void ListLayoutPutsEveryCardOnTheSameLeftEdge()
+        {
+            // The play-test saw cards alternating: one flush left, the next shifted right. list is the
+            // baseline layout - what renders with no experiment applied and after every rejected spec -
+            // so this is the screen the kill-switch and fallback shots are made of.
+            //
+            // Reached the way the demo reaches it. Play mode opens in grid, so list is only ever arrived
+            // at by transitioning out of grid, and a fresh-built list was never what anyone looked at.
+            var screen = Authored("ShopScreen");
+            var view = new ShopScreenView(screen, new FairyBinder(new ListLog()), () => Authored("OfferCard"), _ => { });
+
+            var list = screen.GetChild("listOffers") as GList;
+            Assert.That(list, Is.Not.Null);
+
+            // Flush between the two, or the grid pass never runs and there is no stale x to inherit -
+            // which is exactly why the first version of this test passed while the demo was broken.
+            view.Apply(new PresentationSpec(OfferLayout.Grid, PriceStyle.Plain, null, "Buy"), null);
+            list.EnsureBoundsCorrect();
+
+            view.Apply(new PresentationSpec(OfferLayout.List, PriceStyle.Plain, null, "Buy"), null);
+            list.EnsureBoundsCorrect();
+
+            Assert.That(list.numChildren, Is.GreaterThan(1), "need several cards to see an alternation");
+
+            var first = list.GetChildAt(0);
+            for (int i = 1; i < list.numChildren; i++)
+            {
+                var card = list.GetChildAt(i);
+                Assert.That(card.x, Is.EqualTo(first.x).Within(0.5f),
+                    "card " + i + " sits at x=" + card.x + " while card 0 sits at x=" + first.x +
+                    "; in a single-column list every card shares one left edge. " + Columns(list));
+            }
+        }
+
+        [Test]
+        public void ListLayoutGivesEveryCardTheFullWidthOfTheList()
+        {
+            // The width is what the centring acts on: a card left at its grid width in a centre-aligned
+            // list is offset by half the difference. Asserting the width separately says which of the two
+            // is wrong when this fails.
+            var screen = Authored("ShopScreen");
+            var view = new ShopScreenView(screen, new FairyBinder(new ListLog()), () => Authored("OfferCard"), _ => { });
+
+            var list = screen.GetChild("listOffers") as GList;
+
+            view.Apply(new PresentationSpec(OfferLayout.Grid, PriceStyle.Plain, null, "Buy"), null);
+            list.EnsureBoundsCorrect();
+
+            view.Apply(new PresentationSpec(OfferLayout.List, PriceStyle.Plain, null, "Buy"), null);
+            list.EnsureBoundsCorrect();
+
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                Assert.That(list.GetChildAt(i).width, Is.EqualTo(335f).Within(0.5f),
+                    "card " + i + " is " + list.GetChildAt(i).width + " wide. " + Columns(list));
+            }
+        }
+
+        /// <summary>Names where every card actually sits, so a failure says the shape of the wrongness.</summary>
+        private static string Columns(GList list)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("layout=").Append(list.layout)
+              .Append(" align=").Append(list.align)
+              .Append(" listWidth=").Append(list.width)
+              .Append(" columnGap=").Append(list.columnGap)
+              .Append(" cards:");
+
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                var c = list.GetChildAt(i);
+                sb.Append(" [").Append(i).Append("] x=").Append(c.x).Append(" y=").Append(c.y)
+                  .Append(" w=").Append(c.width).Append(" h=").Append(c.height);
+            }
+
+            return sb.ToString();
+        }
+
+        [UnityTest]
+        public IEnumerator ListLayoutInTheRunningDemoPutsEveryCardOnTheSameLeftEdge()
+        {
+            // The standalone view passes this; the play-test says the running demo does not. The demo
+            // nests the shop screen inside the console's device container, so the list is laid out at
+            // whatever size that container gives it rather than at its authored 335. Reproduce it there.
+            var host = new GameObject("AbTestDemo");
+            var demo = host.AddComponent<AbTestDemoBehaviour>();
+
+            yield return null;
+            yield return null;
+
+            // Play mode opens in grid. The kill switch is how the demo reaches its own baseline.
+            Press(demo.ConsoleRoot, "btnScenarioKill");
+            for (int i = 0; i < 5; i++) yield return null;
+            Press(demo.ConsoleRoot, "btnRefresh");
+            for (int i = 0; i < 5; i++) yield return null;
+
+            // ConsoleMain > containerDevice > ShopScreen > listOffers is two levels down, and Deep only
+            // descends one, so walk to the screen first.
+            var device = UiValidator.Deep(demo.ConsoleRoot, "containerDevice") as GComponent;
+            Assert.That(device, Is.Not.Null, "no device container");
+            var shop = device.GetChild("ShopScreen") as GComponent;
+            Assert.That(shop, Is.Not.Null, "no shop screen in the device container");
+
+            var list = shop.GetChild("listOffers") as GList;
+            Assert.That(list, Is.Not.Null, "no offer list in the running demo");
+            list.EnsureBoundsCorrect();
+
+            Assert.That(list.numChildren, Is.GreaterThan(1));
+
+            var first = list.GetChildAt(0);
+            for (int i = 1; i < list.numChildren; i++)
+            {
+                Assert.That(list.GetChildAt(i).x, Is.EqualTo(first.x).Within(0.5f),
+                    "card " + i + " is offset from card 0. " + Columns(list));
+            }
+
+            Object.DestroyImmediate(host);
+            yield return null;
+        }
+
         // --- Finding 2: is the badge written, or is it a placeholder? -------------------------------------
 
         [Test]
