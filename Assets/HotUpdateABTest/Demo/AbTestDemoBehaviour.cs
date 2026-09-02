@@ -61,7 +61,11 @@ namespace HotUpdateABTest.Demo
                 UsingFallbackUi
                     ? "no FairyGUI package found; the console is the programmatic fallback"
                     : "bound to FairyGUI package '" + PackageName + "'");
-            _log.Log(AbLogLevel.Info, "drop Lua patches into: " + _lua.PatchRoot);
+            // Two rows, not one. The label and a full AppData path together overran the log row and
+            // the path was cut off mid-directory, which is the one line in the whole panel a reader
+            // has to be able to copy.
+            _log.Log(AbLogLevel.Info, "drop Lua patches into this folder, then press Reload Lua patches:");
+            _log.Log(AbLogLevel.Info, _lua.PatchRoot);
         }
 
         private void Update()

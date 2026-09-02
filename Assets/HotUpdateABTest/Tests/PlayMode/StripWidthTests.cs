@@ -1,3 +1,4 @@
+using System.IO;
 using FairyGUI;
 using HotUpdateABTest.Core.Presentation;
 using HotUpdateABTest.Demo;
@@ -29,7 +30,11 @@ namespace HotUpdateABTest.Tests.PlayMode
         /// <summary>Width of the shop screen's debug strip, in pixels.</summary>
         private const int SpecStripWidth = 335;
 
+        private const string PackagePath = "Assets/FairyGUI-Packages/AbTestDemo";
+        private const string PackageName = "AbTestDemo";
+
         private GameObject _stage;
+        private bool _loadedHere;
 
         [SetUp]
         public void SetUp()
@@ -37,11 +42,29 @@ namespace HotUpdateABTest.Tests.PlayMode
             _stage = new GameObject("StageCamera");
             _stage.AddComponent<Camera>();
             _ = GRoot.inst;
+
+            // Pin the content scale factor, and load the package. Text measurement depends on both, and
+            // both are global state on GRoot that whichever fixture boots the demo happens to set first.
+            // Without this the same string measured 114px when a demo fixture had run before it and 124px
+            // when this fixture ran alone: the suite passed in full and failed in isolation, and every
+            // number in this file meant something different depending on order. A width test whose result
+            // depends on what ran before it is not a measurement.
+            GRoot.inst.SetContentScaleFactor(
+                DemoUiFactory.Width, DemoUiFactory.Height, UIContentScaler.ScreenMatchMode.MatchWidthOrHeight);
+
+            if (UIPackage.GetByName(PackageName) == null && File.Exists(PackagePath + "_fui.bytes"))
+            {
+                UIPackage.AddPackage(PackagePath);
+                _loadedHere = true;
+            }
         }
 
         [TearDown]
         public void TearDown()
         {
+            if (_loadedHere) UIPackage.RemovePackage(PackageName);
+            _loadedHere = false;
+
             if (_stage != null) Object.DestroyImmediate(_stage);
         }
 
@@ -167,5 +190,49 @@ namespace HotUpdateABTest.Tests.PlayMode
                    (spec.BadgeText ?? "no badge") + " " + dot + " " +
                    spec.CtaText;
         }
+        // --- Verification pass, item A: the banner must not need shrinking to fit ----------------------
+
+        /// <summary>The banner's authored width, measured from the console layout.</summary>
+        /// <remarks>
+        /// <c>containerDevice</c> runs x 40 to 415 and the log column starts at x 450, so the free space
+        /// under the phone is x 40 to 440. The banner takes 400 of it at x 40.
+        /// </remarks>
+        private const int BannerWidth = 400;
+
+        [Test]
+        public void TheTaintBannerFitsItsWorstCase()
+        {
+            // Shrink-to-fit is a safety net, not the layout. Measured on the worst string the controller
+            // can produce - all three reasons at once - at the banner's own 24px bold. If this fails, the
+            // answer is a wider banner or shorter tokens, never a smaller font: a banner nobody can read
+            // is the defect this replaced.
+            float needed = Measure("TAINTED: forced, skew, exposure", 24, bold: true);
+
+            Assert.That(needed, Is.LessThan(BannerWidth - 10),
+                "the worst-case banner text measures " + needed + "px in a " + BannerWidth +
+                "px banner, so it would clip or shrink");
+        }
+
+        [Test]
+        public void ThePastTenseBannerFitsToo()
+        {
+            float needed = Measure("WAS TAINTED - clear saved state", 24, bold: true);
+
+            Assert.That(needed, Is.LessThan(BannerWidth - 10),
+                "the past-tense banner measures " + needed + "px in a " + BannerWidth + "px banner");
+        }
+
+        [Test]
+        public void DroppingTheTrailingSentenceIsWhatMadeItFit()
+        {
+            // Recorded because the decision was a trade, not an optimisation: the reasons are the
+            // information and the closing phrase was decoration, so the phrase went. This measures what
+            // it would have cost to keep it.
+            float withPhrase = Measure("TAINTED: forced, skew, exposure - not evidence", 24, bold: true);
+
+            Assert.That(withPhrase, Is.GreaterThan(BannerWidth),
+                "if the phrasing now fits, put it back: it measures " + withPhrase + "px");
+        }
+
     }
 }

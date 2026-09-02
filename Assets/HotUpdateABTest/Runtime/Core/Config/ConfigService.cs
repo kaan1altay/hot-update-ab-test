@@ -334,6 +334,14 @@ namespace HotUpdateABTest.Core.Config
                 {
                     toAnnounce = new ConfigSnapshot(_snapshot.Config, ConfigSourceKind.Live, _clock.UtcNow);
                     _snapshot = toAnnounce;
+
+                    // Close the loop in the log. The outage wrote "could not be reached" and nothing ever
+                    // wrote the other half, so a reader scrolling back found a complaint with no
+                    // resolution and no way to tell whether it still applied. The chip already says the
+                    // live state; this is what makes the history readable after the fact.
+                    _log.Log(AbLogLevel.Info,
+                        _source.Description + " is reachable again; back on the live configuration " +
+                        "(version '" + _snapshot.ConfigVersion + "')");
                 }
 
                 return new ConfigApplyResult(ConfigApplyOutcome.Unchanged, _snapshot, ValidationResult.Ok);

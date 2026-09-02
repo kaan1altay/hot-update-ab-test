@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component size="420,34" extention="Label">
-  <controller name="state" exported="true" pages="0,hidden,1,shown" selected="0"/>
+<component size="400,34" extention="Label">
+  <controller name="state" exported="true" pages="0,hidden,1,shown" selected="1"/>
   <displayList>
-    <graph id="n0_8sec" name="bg" xy="0,0" size="420,34" touchable="false" type="rect" lineSize="0" fillColor="#ff660000">
+    <graph id="n0_8sec" name="bg" xy="0,0" size="400,34" touchable="false" type="rect" lineSize="0" fillColor="#ff660000">
       <gearDisplay controller="state" pages="1"/>
+      <relation target="" sidePair="width-width,height-height"/>
     </graph>
-    <text id="n1_8sec" name="title" xy="0,0" size="420,34" fontSize="24" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" singleLine="true" text="title">
+    <text id="n1_8sec" name="title" xy="0,0" size="400,34" fontSize="24" align="center" vAlign="middle" ubb="true" vars="true" autoSize="none" bold="true" singleLine="true" text="title">
       <gearDisplay controller="state" pages="1"/>
       <relation target="" sidePair="width-width,height-height"/>
     </text>

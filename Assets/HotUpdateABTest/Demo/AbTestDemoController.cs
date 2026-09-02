@@ -49,6 +49,7 @@ namespace HotUpdateABTest.Demo
         private readonly ExposureLedger _ledger;
         private readonly InMemoryAnalyticsSink _events;
         private readonly MetricsAggregator _metrics;
+        private readonly HashSet<string> _loggedOnce = new HashSet<string>(StringComparer.Ordinal);
         private readonly ExposureTracker _exposures;
         private readonly ConversionTracker _conversions;
         private readonly SessionTracker _sessions;
@@ -104,6 +105,13 @@ namespace HotUpdateABTest.Demo
         }
 
 
+        /// <summary>Why the last LiveOps action was refused, or null when none was.</summary>
+        /// <remarks>
+        /// Surfaced so the screen can say why nothing happened. A control that silently does nothing is
+        /// indistinguishable from a broken one - the same complaint as a patch that fails with no row.
+        /// </remarks>
+        public string LastRefusal { get; private set; }
+
         /// <summary>True while any breakage or override is switched on right now.</summary>
         public bool IsTainted => IsForced || BucketingSkewBreakage || SkipExposureBreakage;
 
@@ -132,17 +140,21 @@ namespace HotUpdateABTest.Demo
                 if (!IsTainted && !DataTainted) return null;
 
                 var reasons = new List<string>();
-                if (IsForced) reasons.Add("forced variant");
-                if (BucketingSkewBreakage) reasons.Add("bucketing skew");
-                if (SkipExposureBreakage) reasons.Add("exposure dropped");
+                if (IsForced) reasons.Add("forced");
+                if (BucketingSkewBreakage) reasons.Add("skew");
+                if (SkipExposureBreakage) reasons.Add("exposure");
 
                 if (reasons.Count == 0)
                 {
                     // Every switch is off, but the rows gathered while they were on are still in the sink.
-                    return "WAS TAINTED - clear saved state to trust these numbers";
+                    return "WAS TAINTED - clear saved state";
                 }
 
-                return "TAINTED: " + string.Join(" + ", reasons.ToArray()) + " - not evidence";
+                // No trailing sentence. The banner is 400 wide at the log's own font size, and three
+                // reasons plus a phrase does not fit; the reasons are the information and the sentence
+                // was decoration. Shrink-to-fit stays on the title as a safety net, not as the mechanism
+                // the layout depends on - TheTaintBannerFitsItsWorstCase asserts it never has to fire.
+                return "TAINTED: " + string.Join(", ", reasons.ToArray());
             }
         }
 
@@ -375,6 +387,22 @@ namespace HotUpdateABTest.Demo
                 return;
             }
 
+            // Finding 14. Force exists to preview a treatment, and a stopped or paused experiment has
+            // no treatment to preview - everyone is on control already. Accepting the override bought
+            // nothing and raised a FORCED banner that was not forcing anything, and an indicator that
+            // states something untrue is worse than a refused action. Fail closed, the same rule the
+            // audience predicates follow, and say why on screen rather than only in the log.
+            if (experiment.Status != ExperimentStatus.Running)
+            {
+                LastRefusal = "override refused: " + experiment.Id + " is " +
+                              experiment.Status.ToString().ToLowerInvariant() +
+                              ", so there is no treatment to preview";
+
+                LogOnce("force.notRunning." + experiment.Id + "." + experiment.Status, LastRefusal);
+                return;
+            }
+
+            LastRefusal = null;
             DataTainted = true;
 
             _forcedIndex++;
@@ -394,6 +422,7 @@ namespace HotUpdateABTest.Demo
         /// <summary>Clears every QA override.</summary>
         public void ClearForcedVariant()
         {
+            LastRefusal = null;
             _forcedIndex = -1;
             if (!_resolver.Overrides.Any) return;
 
@@ -489,6 +518,13 @@ namespace HotUpdateABTest.Demo
 
             _log.Log(AbLogLevel.Info,
                 "demo reset: pins, cache, events, metrics, overrides and both breakages cleared");
+        }
+
+        /// <summary>Logs a message the first time its key is seen.</summary>
+        private void LogOnce(string key, string message)
+        {
+            if (!_loggedOnce.Add(key)) return;
+            _log.Log(AbLogLevel.Warning, message);
         }
 
         /// <summary>Builds the metrics report the panel renders.</summary>

@@ -251,6 +251,52 @@ is measuring code you no longer have. If a failure message does not correspond t
 can read on disk, suspect the build before you suspect the test. Run each platform as a separate
 command and let the first fully exit.
 
+## Findings 6, 12, 13 and 14
+
+**14 — the override is refused on an experiment that is not running.** Force exists to preview a
+treatment, and a stopped or paused experiment has no treatment to preview: everyone is on control already.
+Accepting it bought nothing and raised a FORCED banner that was not forcing anything, and an indicator
+stating something untrue is worse than a refused action. It now fails closed — the same rule the audience
+predicates follow — logs once per reason, and puts the reason on screen through `LastRefusal`. A refused
+action marks nothing as tainted, and the refusal clears when the experiment runs again.
+
+**6 — the log now records the recovery, not only the fall.** The unreachable message is a log row, and a
+log is history rather than status; the source chip is the live indicator, and since finding 2 it demotes
+and climbs back on its own. But the history only ever recorded the outage, so a reader scrolling back
+found a complaint with no resolution and no way to tell whether it still applied. The climb back now
+writes a line of its own. Log-once during the outage was confirmed by hand and is pinned by a test.
+
+**12 — the patch folder path is on its own row.** The label and a full `AppData` path together overran the
+row and the path was cut mid-directory, which is the one line in the panel a reader has to be able to
+copy.
+
+**13 — the server starting with the demo is deliberate.** The demo is a LiveOps console, and a console
+whose first frame shows a dead server reads as broken rather than as ready. `docs/DEMO_SCRIPT.md` opens
+with **Stop server** for that reason: the recovery is the shot worth having, and it needs something to
+recover from. `btnServerToggle` is a pair either way round.
+
+## Two batchmode traps worth an hour each
+
+**`LogAssert.ignoreFailingMessages` must be set per test body, not in `[SetUp]`.** The framework resets it
+after setup runs, so a fixture-wide assignment is silently discarded. Any test that drives a failure path
+on purpose — a patch that cannot parse, a spec the screen cannot render — will otherwise be failed by the
+framework for the `Debug.LogError` it was written to provoke, with a message that points at the log rather
+than at the assertion. Two runs went into that. The line goes at the top of each test:
+
+```csharp
+LogAssert.ignoreFailingMessages = true;
+```
+
+**Text measurement depends on global state that whichever fixture ran first happened to set.**
+`StripWidthTests` measured the same string at 114px in a full run and 124px alone, so it passed in the
+suite and failed in isolation. The cause is `GRoot`'s content scale factor, set by any fixture that boots
+the demo. The fixture now pins it and loads the package itself, which is the whole point of a width test:
+a number that changes with test order is not a measurement.
+
+Both belong in the same family as the batchmode chaining hazard above. The suite is an instrument, and an
+instrument that reads differently depending on what you did before you picked it up needs fixing before
+its readings mean anything.
+
 ## Test results
 
 Last run 2026-09-02, all three suites green.
@@ -258,23 +304,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 345 | 345 passed, 0 skipped |
-| Unity PlayMode batchmode | 34 | 34 passed |
+| Unity EditMode batchmode | 353 | 353 passed, 0 skipped |
+| Unity PlayMode batchmode | 37 | 37 passed |
 
 ### How the suites overlap
 
-**379 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**390 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **107** | 238 + 107 = the 345 EditMode total |
-| PlayMode tests | **34** | no overlap with EditMode |
-| **Distinct** | **379** | |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **115** | 238 + 115 = the 353 EditMode total |
+| PlayMode tests | **37** | no overlap with EditMode |
+| **Distinct** | **390** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 617, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 628, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.
@@ -402,7 +448,7 @@ reliably catches, so it is worth catching first.
 | `btnScenarioKill` | `btnScenarioNormal` | `TheKillSwitchStopsEveryExperimentAndNormalStartsThemAgain` |
 | `btnScenarioPause` | `btnScenarioNormal` | `PauseThenNormalRestoresOnlyThePausedExperiment` |
 | `btnScenarioWeights` | `btnScenarioNormal` — **asymmetric, see below** | `RestoringTheWeightsDoesNotRestoreTheArmsOfUsersAlreadyExposed` |
-| `btnForceVariant` | `btnClearForce`, or cycling past the last arm | `ForcingAVariantThenClearingItRestoresBucketing`, `CyclingTheOverridePastTheLastArmClearsIt` |
+| `btnForceVariant` | `btnClearForce`, or cycling past the last arm. Refused outright on a stopped or paused experiment, and the refusal clears when it runs again | `ForcingAVariantThenClearingItRestoresBucketing`, `CyclingTheOverridePastTheLastArmClearsIt`, `ForcingAVariantOnAStoppedExperimentIsRefused`, `RunningTheExperimentAgainMakesTheOverrideWorkAndClearsTheRefusal` |
 | `btnInjectSkew` | press again — also raises and clears the taint banner | `BucketingSkewBreaksTheRatioAndFixingItRecovers`, `BucketingSkewRaisesTheTaintBanner` |
 | `btnSkipExposure` | press again — also raises and clears the taint banner | `SkipExposureBreaksTheRatioAndFixingItRecovers`, `SkippedExposureLoggingRaisesTheTaintBanner` |
 | `btnServerToggle` (stop) | press again — the port is released and reclaimed, and the source chip demotes to LKG and climbs back | `TheServerCanBeStoppedAndStartedAgain`, `StoppingTheServerStopsTheChipClaimingLive`, `StartingTheServerAgainReturnsTheChipToLive` |

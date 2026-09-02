@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="1100,34" extention="Label">
-  <controller name="type" exported="true" pages="0,log,1,warn,2,err" selected="0"/>
+  <controller name="type" exported="true" pages="0,log,1,warn,2,err" selected="2"/>
   <displayList>
-    <text id="n0_8sec" name="title" xy="107,0" size="973,34" font="Nirmala UI" fontSize="24" color="#ffffff" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" autoSize="height" strokeColor="#000000" text="LOGLOGLOGLOGLOGLOGLOGLOG">
-      <gearColor controller="type" pages="0,1,2" values="#ffffff,#000000|#ffff99,#000000|#b20000,#000000"/>
+    <text id="n0_8sec" name="title" xy="117,0" size="963,34" font="Nirmala UI" fontSize="24" color="#ff6b6b" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" autoSize="height" strokeColor="#000000" text="LOGLOGLOGLOGLOGLOGLOGLOG">
+      <gearColor controller="type" pages="0,1,2" values="#ffffff,#000000|#ffff99,#000000|#ff6b6b,#000000"/>
       <relation target="" sidePair="width-width,right-right"/>
       <relation target="n1_8sec" sidePair="leftext-right"/>
     </text>
-    <text id="n1_8sec" name="titleLogHeader" xy="25,0" size="56,34" font="Nirmala UI" fontSize="24" color="#cccccc" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" bold="true" strokeColor="#000000" text="Log:">
+    <text id="n1_8sec" name="titleLogHeader" xy="25,0" size="66,34" font="Nirmala UI" fontSize="24" color="#ff3300" align="center" leading="4" letterSpacing="1" ubb="true" vars="true" bold="true" strokeColor="#000000" text="Error">
       <gearColor controller="type" pages="0,1" values="#cccccc,#000000|#ffe100,#000000" default="#ff3300,#000000"/>
       <gearText controller="type" pages="1,2" values="Warn:|Error" default="Log:"/>
       <relation target="" sidePair="middle-middle"/>
     </text>
-    <graph id="n2_66ke" name="graphLineSeperatorUp" xy="0,0" size="1100,2" type="rect" lineSize="0" fillColor="#ffcccccc">
+    <graph id="n2_66ke" name="graphLineSeperatorUp" xy="0,0" size="1100,2" type="rect" lineSize="0" fillColor="#ff660000">
       <gearColor controller="type" pages="1,2" values="#ffcc00|#660000" default="#cccccc"/>
       <relation target="" sidePair="width-width,center-center,top-top"/>
     </graph>
-    <graph id="n3_66ke" name="graphLineSeperatorDown" xy="0,32" size="1100,2" type="rect" lineSize="0" fillColor="#ffcccccc">
+    <graph id="n3_66ke" name="graphLineSeperatorDown" xy="0,32" size="1100,2" type="rect" lineSize="0" fillColor="#ff660000">
       <gearColor controller="type" pages="1,2" values="#ffcc00|#660000" default="#cccccc"/>
       <relation target="" sidePair="width-width,center-center,bottom-bottom"/>
     </graph>
-    <graph id="n4_66ke" name="graphLineSeperator" xy="104,0" size="2,34" type="rect" lineSize="0" fillColor="#ffcccccc">
+    <graph id="n4_66ke" name="graphLineSeperator" xy="104,0" size="2,34" type="rect" lineSize="0" fillColor="#ff660000">
       <gearColor controller="type" pages="1,2" values="#ffcc00|#660000" default="#cccccc"/>
       <relation target="" sidePair="height-height,middle-middle"/>
     </graph>

@@ -283,6 +283,118 @@ namespace HotUpdateABTest.Tests.Unity
             }
         }
 
+        // --- Verification pass, finding 14: force is a preview, so refuse it when there is nothing to see -
+
+        [Test]
+        public void ForcingAVariantOnAStoppedExperimentIsRefused()
+        {
+            // A stopped experiment has no treatment to preview - everyone is on control already - so
+            // accepting the override buys nothing and raises a banner that is not forcing anything. An
+            // indicator that states something untrue is worse than a refused action, so this fails closed,
+            // the same rule the audience predicates follow.
+            _demo.OnButton("btnScenarioKill");
+
+            _demo.OnButton("btnForceVariant");
+
+            Assert.That(_demo.IsForced, Is.False, "the override must not take effect");
+            Assert.That(_demo.LastRefusal, Is.Not.Null, "and the screen must say why");
+            Assert.That(_demo.LastRefusal, Does.Contain("stopped"),
+                "it reads '" + _demo.LastRefusal + "'");
+        }
+
+        [Test]
+        public void ARefusedOverrideRaisesNoTaintBanner()
+        {
+            // The point of refusing. Nothing was forced, so nothing is tainted, and the banner must stay
+            // down rather than announce a treatment that is not applied.
+            _demo.OnButton("btnScenarioKill");
+            _demo.OnButton("btnForceVariant");
+
+            Assert.That(_demo.IsTainted, Is.False);
+            Assert.That(_demo.DataTainted, Is.False, "a refused action must not mark the data");
+            Assert.That(_demo.TaintDescription, Is.Null);
+        }
+
+        [Test]
+        public void TheRefusalIsLoggedOncePerReason()
+        {
+            _demo.OnButton("btnScenarioKill");
+
+            _demo.OnButton("btnForceVariant");
+            _demo.OnButton("btnForceVariant");
+            _demo.OnButton("btnForceVariant");
+
+            Assert.That(_log.CountContaining("there is no treatment to preview"), Is.EqualTo(1),
+                "the log says:\n" + _log.All);
+        }
+
+        [Test]
+        public void RunningTheExperimentAgainMakesTheOverrideWorkAndClearsTheRefusal()
+        {
+            // The action pair: a refusal must not latch any more than a breakage does.
+            _demo.OnButton("btnScenarioKill");
+            _demo.OnButton("btnForceVariant");
+            Assert.That(_demo.LastRefusal, Is.Not.Null);
+
+            _demo.OnButton("btnScenarioNormal");
+            _demo.OnButton("btnForceVariant");
+
+            Assert.That(_demo.IsForced, Is.True, "a running experiment can be forced again");
+            Assert.That(_demo.LastRefusal, Is.Null, "and the refusal message is gone");
+        }
+
+        [Test]
+        public void TheLogSaysWhenTheSourceComesBack()
+        {
+            // Finding 6. The outage wrote "could not be reached" and nothing ever wrote the other half,
+            // so the message sat there after recovery looking like a live complaint. It is a log row, and
+            // a log is history rather than status - the chip is the live indicator - but a history that
+            // records the fall and not the recovery is a history nobody can read.
+            using (var http = new AbTestDemoController(_log, SystemClock.Instance, _lua.Host, preferHttp: true))
+            {
+                http.Start();
+                http.OnButton("btnScenarioNormal");
+
+                if (http.Snapshot.Source != ConfigSourceKind.Live)
+                {
+                    Assert.Ignore("no live HTTP source to demote from (no port bound)");
+                }
+
+                http.ToggleServer();
+                Assert.That(_log.All, Does.Contain("could not be reached"), "the fall is recorded");
+
+                http.ToggleServer();
+
+                Assert.That(_log.All, Does.Contain("reachable again"),
+                    "and so must the recovery be. The log says:\n" + _log.All);
+            }
+        }
+
+        [Test]
+        public void RepeatedRefreshesDuringAnOutageStillLogOnce()
+        {
+            // Confirmed by hand in the verification pass; pinned here so it stays true now that the
+            // recovery line has been added next to it.
+            using (var http = new AbTestDemoController(_log, SystemClock.Instance, _lua.Host, preferHttp: true))
+            {
+                http.Start();
+                http.OnButton("btnScenarioNormal");
+
+                if (http.Snapshot.Source != ConfigSourceKind.Live)
+                {
+                    Assert.Ignore("no live HTTP source to demote from (no port bound)");
+                }
+
+                http.ToggleServer();
+                http.OnButton("btnRefresh");
+                http.OnButton("btnRefresh");
+                http.OnButton("btnRefresh");
+
+                Assert.That(_log.CountContaining("could not be reached"), Is.EqualTo(1),
+                    "the log says:\n" + _log.All);
+            }
+        }
+
         // --- server ---------------------------------------------------------------------------------
 
         [Test]
