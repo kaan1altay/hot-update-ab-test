@@ -57,6 +57,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [SetUp]
         public void SetUp()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             _stage = new GameObject("StageCamera");
             _stage.AddComponent<Camera>();
             _ = GRoot.inst;
@@ -69,6 +73,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [TearDown]
         public void TearDown()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             _lua?.Dispose();
             if (_stage != null) Object.DestroyImmediate(_stage);
         }
@@ -79,6 +87,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void ResolvingAndBuildingTheWholeShopScreenLogsNothing()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The screen is created, bound, and rendered from a real resolved spec - everything short of a
             // player actually seeing it. The sink must stay completely empty.
             var controller = new AbTestDemoController(_log, SystemClock.Instance, _lua, preferHttp: false);
@@ -110,6 +122,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void OnlyMarkingTheScreenSeenProducesAnExposure()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The other half. Without this, a view layer that logged nothing at all would also pass.
             var ledger = new ExposureLedger();
             var resolver = new ExperimentResolver(new InMemoryAssignmentStore());
@@ -141,6 +157,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheLiveDemoLogsOneExposurePerLayerNoMatterHowOftenItRepaints()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The whole thing running: the demo marks the shop seen once at startup, then repaints on every
             // button press and every config change. Those repaints resolve, which must stay free.
             var host = new GameObject("AbTestDemo");

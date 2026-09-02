@@ -166,17 +166,53 @@ namespace HotUpdateABTest.Tests.Unity
         }
 
         [Test]
-        public void TheTaintBannerNamesEveryReasonAtOnce()
+        public void TheTaintBannerTextNamesEveryReasonAtOnce()
         {
+            // The play-test saw "BROKEN: bucketing skew injected ;" - the separator proved a second reason
+            // was in the string and not on the screen. Asserting the banner is *visible* would have passed
+            // through that, so this asserts what the string actually says.
             _demo.OnButton("btnForceVariant");
             _demo.SetBucketingSkew(true);
             _demo.SetExposureSkipping(true);
 
             string text = _demo.TaintDescription;
 
-            Assert.That(text, Does.Contain("FORCED"), "it reads '" + text + "'");
-            Assert.That(text, Does.Contain("skew").IgnoreCase, "it reads '" + text + "'");
-            Assert.That(text, Does.Contain("exposure").IgnoreCase, "it reads '" + text + "'");
+            Assert.That(text, Does.Contain("forced"), "it reads '" + text + "'");
+            Assert.That(text, Does.Contain("skew"), "it reads '" + text + "'");
+            Assert.That(text, Does.Contain("exposure"), "it reads '" + text + "'");
+        }
+
+        [Test]
+        public void TheTaintBannerStaysUpAfterTheTogglesGoOff()
+        {
+            // Finding B. Flipping the switch off does not make the rows it produced trustworthy, and the
+            // cause must not vanish while the symptom stays on screen.
+            _demo.SetExposureSkipping(true);
+            _demo.SimulateUsers(200);
+            _demo.SetExposureSkipping(false);
+
+            Assert.That(_demo.IsTainted, Is.False, "nothing is switched on any more");
+            Assert.That(_demo.DataTainted, Is.True, "but the sink still holds the rows it produced");
+            Assert.That(_demo.TaintDescription, Is.Not.Null,
+                "so the banner must still say so, in the past tense");
+            Assert.That(_demo.TaintDescription, Does.Contain("WAS TAINTED"),
+                "it reads '" + _demo.TaintDescription + "'");
+        }
+
+        [Test]
+        public void ClearingSavedStateIsWhatClearsTheTaintBanner()
+        {
+            // The action pair: the control that clears the data is the control that clears the marker.
+            _demo.SetBucketingSkew(true);
+            _demo.SimulateUsers(200);
+            _demo.SetBucketingSkew(false);
+            Assert.That(_demo.DataTainted, Is.True);
+
+            _demo.ResetDemo();
+
+            Assert.That(_demo.DataTainted, Is.False);
+            Assert.That(_demo.TaintDescription, Is.Null,
+                "it still reads '" + _demo.TaintDescription + "'");
         }
 
         [Test]

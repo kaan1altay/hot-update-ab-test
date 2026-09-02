@@ -178,6 +178,47 @@ later. Both now log at `Error` — which also answers finding 9: the `LogRow` co
 unreachable because nothing in the demo ever emitted an error, so the third page of a three-page
 controller was dead. Raising the severity made it reachable rather than deleting it.
 
+## Verification pass — the banner, the severities, and a row nobody could read
+
+**A patch failure was logged and could not be read.** The row was emitted, at the right severity, with the
+right text. The authored `LogRow` colours its title by gear, and page 2 — `err` — is `#b20000` with a black
+stroke on the console's `#00001e` background. Measured against that background: `log` `#ffffff` is
+20.61 : 1, `warn` `#ffff99` is 19.65 : 1, and `err` is **2.84 : 1**, against a readability floor of 4.5 : 1.
+
+The sequence is worth keeping. The parse failure used to log at `Warning` and was visible. Raising it to
+`Error` — the right call — moved it from a 19.65 : 1 colour to a 2.84 : 1 one, and it disappeared. A
+correct fix made visible a defect that had been latent since the package was authored: nothing had ever
+selected that page.
+
+It also disproves the obvious hypothesis, which was that the severity mapping could never select page 2.
+The pages are named `0,log,1,warn,2,err`, `LogPage` returns those names, selection is by name and not by
+index, and boot validation checks all three. The page was always reachable. It could not be seen.
+
+**Three severities disagreed with each other.** A rejected spec logged at `Warning` while its text began
+`error:`, because `ValidationResult` labels every issue that way and the row level was decided separately.
+It now logs at `Error`: the patch author sent something the screen cannot render and the treatment was not
+applied. Rendering control is what should happen *after* an error, not evidence it was a warning.
+
+**The banner clipped its second reason with no mark.** `ForcedBanner` is authored 420 wide, single line,
+`autoSize="none"`, so a long string is cut silently — the only tell was the separator at the end changing
+from a dash to a semicolon. The reasons are now short tokens and the title shrinks to fit, and the test
+asserts what the string *says* rather than that the banner is visible, because the visible-only assertion
+passed straight through the defect.
+
+**The banner now outlives the toggle.** Flipping a breakage off does not make the rows it produced
+trustworthy, and the old behaviour removed the cause from the screen while leaving the symptom: a red
+ratio light over tainted numbers with nothing saying why. `DataTainted` latches when anything is switched
+on and clears only on `ResetDemo`, which is also what clears the data — the same action pair as the rest
+of the table. While a switch is on the banner names the reasons; once they are all off it reads
+`WAS TAINTED - clear saved state to trust these numbers`. This is finding 3's second half seen from the
+UI side, and `TheForcedBannerAppearsAndClears` was updated deliberately: it asserted the old behaviour.
+
+**Season Pass shows no struck-through price, and that is correct.** The offer catalogue carries no original
+price for it, so there is nothing to strike, and the `discounted` presentation falls back to `plain` for
+that card alone. The shipped Lua baseline makes the same decision explicitly through
+`ctx.has_original_price`, which is why the guard sits in the behaviour rather than in the renderer. Three
+cards struck through and one not is the data being honest, not the screen being inconsistent.
+
 ## Running the tests
 
 **The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
@@ -217,23 +258,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 343 | 343 passed, 0 skipped |
-| Unity PlayMode batchmode | 32 | 32 passed |
+| Unity EditMode batchmode | 345 | 345 passed, 0 skipped |
+| Unity PlayMode batchmode | 34 | 34 passed |
 
 ### How the suites overlap
 
-**375 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**379 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **105** | 238 + 105 = the 343 EditMode total |
-| PlayMode tests | **32** | no overlap with EditMode |
-| **Distinct** | **375** | |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **107** | 238 + 107 = the 345 EditMode total |
+| PlayMode tests | **34** | no overlap with EditMode |
+| **Distinct** | **379** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 613, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 617, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.

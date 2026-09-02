@@ -41,6 +41,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [SetUp]
         public void SetUp()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             _stage = new GameObject("StageCamera");
             _stage.AddComponent<Camera>();
             _ = GRoot.inst;
@@ -60,6 +64,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [TearDown]
         public void TearDown()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             if (_loadedHere) UIPackage.RemovePackage(PackageName);
             _loadedHere = false;
 
@@ -74,6 +82,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void OfferCardChildrenStayInsideTheCardInBothLayouts()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The authored gears use positionsInPercent, so a child's position is (percent x current parent
             // size) at the moment the page is applied. The percentages were computed against the card's
             // base 335x96, so applying the grid page while the card is already 163x190 multiplies every
@@ -109,6 +121,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void EveryOfferCardShowsItsOwnNameAndPrice()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The screenshot showed names on the bottom row only and no prices at all. Whatever the
             // mechanism, each of the four cards must carry the text for its own offer.
             var screen = Authored("ShopScreen");
@@ -138,6 +154,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void ListLayoutPutsEveryCardOnTheSameLeftEdge()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The play-test saw cards alternating: one flush left, the next shifted right. list is the
             // baseline layout - what renders with no experiment applied and after every rejected spec -
             // so this is the screen the kill-switch and fallback shots are made of.
@@ -173,6 +193,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void ListLayoutGivesEveryCardTheFullWidthOfTheList()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The width is what the centring acts on: a card left at its grid width in a centre-aligned
             // list is offset by half the difference. Asserting the width separately says which of the two
             // is wrong when this fails.
@@ -217,6 +241,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator ListLayoutInTheRunningDemoPutsEveryCardOnTheSameLeftEdge()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The standalone view passes this; the play-test says the running demo does not. The demo
             // nests the shop screen inside the console's device container, so the list is laid out at
             // whatever size that container gives it rather than at its authored 335. Reproduce it there.
@@ -261,6 +289,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator APatchInTheRealPatchFolderChangesTheRunningShop()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The play-test could never get a patch to visibly apply, so the repository's headline claim
             // was the one thing nobody had confirmed by hand. Everything else that exercises Lua uses a
             // temporary baseline and a temporary patch root; this writes into the folder the demo
@@ -308,6 +340,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator DeletingThePatchAndReloadingPutsTheShippedTextBack()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // Test 20 of the play-test, which could not run until a patch applied at all. Reload rebuilds
             // the registry from the baseline up rather than applying a delta, so removing a file removes
             // its effect - the half of hot update that is easy to skip demonstrating.
@@ -398,12 +434,29 @@ namespace HotUpdateABTest.Tests.PlayMode
             public BorrowedPatchFolder()
             {
                 Directory.CreateDirectory(LivePatchRoot);
-                string parked = Path.Combine(LivePatchRoot, "parked-by-tests");
+
+                // Parked OUTSIDE the patch folder. Parking inside it put a person's file somewhere a
+                // later cleanup could reasonably delete, and that is exactly what happened: a run died on
+                // the editor lock before it could restore, and the leftovers were swept by hand along
+                // with the file being kept safe. Somewhere the demo never reads and nobody tidies is the
+                // right place for a borrowed file.
+                string parked = Path.Combine(Path.GetTempPath(), "abtest-parked-patches");
                 Directory.CreateDirectory(parked);
 
                 foreach (string path in Directory.GetFiles(LivePatchRoot, "*.lua"))
                 {
-                    string to = Path.Combine(parked, Path.GetFileName(path));
+                    // Debris from a run that died before its finally could fire. Deleted rather than
+                    // parked: restoring it would put a deliberately broken patch back in a human's folder,
+                    // and a leftover here poisons every later test that boots the demo - which is how one
+                    // run reported a carousel rejection in a fixture that never mentions carousels.
+                    string name = Path.GetFileName(path);
+                    if (name.StartsWith("zz-", System.StringComparison.Ordinal))
+                    {
+                        File.Delete(path);
+                        continue;
+                    }
+
+                    string to = Path.Combine(parked, name);
                     File.Copy(path, to, true);
                     File.Delete(path);
                     _moved.Add(new KeyValuePair<string, string>(path, to));
@@ -412,6 +465,10 @@ namespace HotUpdateABTest.Tests.PlayMode
 
             public void Dispose()
             {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
                 foreach (var pair in _moved)
                 {
                     try
@@ -421,14 +478,14 @@ namespace HotUpdateABTest.Tests.PlayMode
                     }
                     catch (System.Exception)
                     {
-                        // Leaving a copy in parked-by-tests is recoverable; throwing here would hide the
+                        // Leaving the copy in the park directory is recoverable; throwing here would hide the
                         // real assertion failure behind a cleanup one.
                     }
                 }
 
                 try
                 {
-                    string parked = Path.Combine(LivePatchRoot, "parked-by-tests");
+                    string parked = Path.Combine(Path.GetTempPath(), "abtest-parked-patches");
                     if (Directory.Exists(parked) && Directory.GetFiles(parked).Length == 0)
                         Directory.Delete(parked);
                 }
@@ -441,6 +498,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheFlashSaleExampleChangesTheAuthoredShopScreen()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // Exactly what a reader does: copy the file the repository ships into the folder the demo
             // reads, press the button, look at the screen. Against the authored package, not the
             // fallback - the fallback's button is a different object and would prove nothing about the
@@ -481,6 +542,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheLayoutSwapExampleChangesTheArrangement()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The other layer, and the proof the two compose rather than collide: this one writes only
             // 'layout' and leaves the pricing copy alone.
             using (new BorrowedPatchFolder())
@@ -531,6 +596,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheBadLayoutValueExampleReachesTheUnknownEnumCheck()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The whole reason this example exists. Owning the layout group is what gets past the field
             // ownership rule, which is what the play-test's 'carousel' attempt kept tripping first.
             using (new BorrowedPatchFolder())
@@ -600,6 +669,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator BelowTheFloorTheBarSaysUnmeasuredJustAsTheLightDoes()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // One user in the system. The light reads grey - unknown, correct, far below the chi-squared
             // floor. The bar beside it read "100.0% / 50.0%" and drew itself full, which is a measured
             // extreme. Two indicators, same state, opposite stories, and the index-aligned SrmState was
@@ -661,11 +734,103 @@ namespace HotUpdateABTest.Tests.PlayMode
             return aggregator.Build(read.Config, MetricsPopulation.Analysis);
         }
 
+        // --- Verification pass, finding C: a patch that fails to load must produce a row ---------------
+
+        [UnityTest]
+        public IEnumerator APatchThatCannotBeParsedPutsARowOnTheLogPanel()
+        {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
+            // The counter said "1 failed" and the panel showed nothing. A failure that is counted but not
+            // shown is the same as no failure at all to the person watching the screen.
+            using (new BorrowedPatchFolder())
+            {
+            Directory.CreateDirectory(LivePatchRoot);
+            string file = Path.Combine(LivePatchRoot, "zz-broken.lua");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                File.WriteAllText(file, "this is not lua at all (((( sdfsd");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                string tail = LogTail(demo.ConsoleRoot, 20);
+
+                Assert.That(tail, Does.Contain("zz-broken.lua"),
+                    "the panel must name the file that failed. It shows:\n" + tail);
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator AFailedPatchSelectsTheErrorPageOnItsLogRow()
+        {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
+            // Finding 9 and E.3 together: is the err page reachable at all, by a real action? The page
+            // names match and boot validation passes, so if this fails the fault is upstream of the row.
+            using (new BorrowedPatchFolder())
+            {
+            Directory.CreateDirectory(LivePatchRoot);
+            string file = Path.Combine(LivePatchRoot, "zz-broken.lua");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                File.WriteAllText(file, "this is not lua at all (((( sdfsd");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                var list = UiValidator.Deep(demo.ConsoleRoot, "listLog") as GList;
+                Assert.That(list, Is.Not.Null);
+
+                bool sawErrorPage = false;
+                for (int i = 0; i < list.numChildren; i++)
+                {
+                    if (!(list.GetChildAt(i) is GComponent row)) continue;
+                    var controller = row.GetController("type");
+                    if (controller != null && controller.selectedPage == "err") sawErrorPage = true;
+                }
+
+                Assert.That(sawErrorPage, Is.True,
+                    "no row is on the err page, so the third page of a three-page controller is still " +
+                    "unreachable. The panel shows:\n" + LogTail(demo.ConsoleRoot, 20));
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+            }
+        }
+
         // --- Finding 2: is the badge written, or is it a placeholder? -------------------------------------
 
         [Test]
         public void EveryCardsBadgeIsWrittenFromTheSpecNotLeftAsThePlaceholder()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The authored placeholder is "Badge". A distinctive value here proves the per-card write
             // happens on all four rather than on one cached reference.
             var screen = Authored("ShopScreen");
@@ -688,6 +853,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void TheShareCaptionSurvivesAResizeOrIsKnownNotTo()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // GProgressBar adopts a child named literally "title" as its own title object and rewrites it
             // from titleType inside HandleSizeChanged. So the caption's *name* decides whether a resize can
             // clobber it, and this asserts whichever is true of the package as authored today.
@@ -734,6 +903,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheShareBarShowsOurTitleInTheRunningDemo()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The end-to-end guard for what the play-test actually saw: "0%" and "100%" where
             // "49.9% / 50.0%" belonged. Runs the whole demo, simulates a population, and lets several
             // frames pass so any deferred layout has every chance to clobber the title.
@@ -820,6 +993,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator AnUnmeasuredShareCellReadsADashRatherThanZero()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // "0%" on an unmeasured cell reads as a measured zero, which is the specific misreading the
             // dash exists to prevent. Driven on the stage with frames yielded, because the list lays out
             // deferred: a synthetic call that never renders cannot catch a clobber that happens later.
@@ -861,6 +1038,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void TheSpecStripIsWrittenAndInsideTheScreen()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var screen = Authored("ShopScreen");
             var view = new ShopScreenView(screen, new FairyBinder(new ListLog()), () => Authored("OfferCard"), _ => { });
 
@@ -888,6 +1069,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator EveryMetricsRowAlignsItsColumnsIdentically()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // groupRow uses a horizontal layout with excludeInvisibles and is centred in the row, so hiding
             // the ratio light on continuation rows makes the group narrower and re-centres everything left
             // of it. The light must be hidden without leaving the layout.

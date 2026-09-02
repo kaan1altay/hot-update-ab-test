@@ -104,21 +104,50 @@ namespace HotUpdateABTest.Demo
         }
 
 
-        /// <summary>True when anything makes the numbers on screen untrustworthy.</summary>
-        /// <remarks>
-        /// Wider than <see cref="IsForced"/> on purpose. A forced variant, injected bucketing skew and
-        /// suppressed exposure logging all poison the data, and the banner is the only marker that
-        /// survives a crop: a toggle can be scrolled out of frame, leaving a viewer with a red ratio
-        /// light and no stated cause.
-        /// </remarks>
+        /// <summary>True while any breakage or override is switched on right now.</summary>
         public bool IsTainted => IsForced || BucketingSkewBreakage || SkipExposureBreakage;
 
-        /// <summary>Every active reason the data is untrustworthy, or null when there is none.</summary>
+        /// <summary>True when the data in the sink was gathered while something was broken.</summary>
         /// <remarks>
-        /// Every reason, not the first one. Two faults at once are a state someone will reach on camera,
-        /// and a banner that names one of them invites the reader to fix that one and trust the rest.
+        /// Latched, and cleared only by <see cref="ResetDemo"/> - which is also what clears the data.
+        /// Flipping a breakage toggle off does not make the rows it produced trustworthy, and a banner
+        /// that vanished on the toggle left the symptom on screen while the cause disappeared: a red
+        /// ratio light over tainted numbers with nothing saying why. This is finding 3's second half seen
+        /// from the UI side, and it is the same action pair as everything else in the table - the control
+        /// that clears the state is the control that clears the marker.
+        /// </remarks>
+        public bool DataTainted { get; private set; }
+
+        /// <summary>Short banner text naming every active reason, or null when there is nothing to say.</summary>
+        /// <remarks>
+        /// Deliberately terse. <c>ForcedBanner</c> is authored 420 wide, single line, with no auto-size,
+        /// so anything longer is clipped without a mark - the reasons were in the string and not on the
+        /// screen, and the only tell was the separator changing. Short tokens plus a shrink-to-fit title
+        /// keep every reason legible; the full sentence goes to the log, which is where detail belongs.
         /// </remarks>
         public string TaintDescription
+        {
+            get
+            {
+                if (!IsTainted && !DataTainted) return null;
+
+                var reasons = new List<string>();
+                if (IsForced) reasons.Add("forced variant");
+                if (BucketingSkewBreakage) reasons.Add("bucketing skew");
+                if (SkipExposureBreakage) reasons.Add("exposure dropped");
+
+                if (reasons.Count == 0)
+                {
+                    // Every switch is off, but the rows gathered while they were on are still in the sink.
+                    return "WAS TAINTED - clear saved state to trust these numbers";
+                }
+
+                return "TAINTED: " + string.Join(" + ", reasons.ToArray()) + " - not evidence";
+            }
+        }
+
+        /// <summary>The unabbreviated reasons, for the log rather than the banner.</summary>
+        public string TaintDetail
         {
             get
             {
@@ -129,7 +158,7 @@ namespace HotUpdateABTest.Demo
                 if (BucketingSkewBreakage) reasons.Add("BROKEN: bucketing skew injected");
                 if (SkipExposureBreakage) reasons.Add("BROKEN: variant 'urgency' is not logging exposures");
 
-                return string.Join("; ", reasons.ToArray()) + " - these numbers are not evidence";
+                return string.Join("; ", reasons.ToArray());
             }
         }
 
@@ -346,6 +375,8 @@ namespace HotUpdateABTest.Demo
                 return;
             }
 
+            DataTainted = true;
+
             _forcedIndex++;
             if (_forcedIndex >= experiment.Variants.Count)
             {
@@ -381,6 +412,7 @@ namespace HotUpdateABTest.Demo
         public void SetBucketingSkew(bool broken)
         {
             BucketingSkewBreakage = broken;
+            if (broken) DataTainted = true;
             _log.Log(broken ? AbLogLevel.Warning : AbLogLevel.Info,
                 broken
                     ? "BREAKAGE: bucketing skewed. The exposed split will drift while every funnel rate " +
@@ -399,6 +431,7 @@ namespace HotUpdateABTest.Demo
         public void SetExposureSkipping(bool broken)
         {
             SkipExposureBreakage = broken;
+            if (broken) DataTainted = true;
             _log.Log(broken ? AbLogLevel.Warning : AbLogLevel.Info,
                 broken
                     ? "BREAKAGE: variant 'urgency' no longer logs exposures. Assignments stay 50/50; the " +
@@ -442,6 +475,8 @@ namespace HotUpdateABTest.Demo
             ClearForcedVariant();
             SetBucketingSkew(false);
             SetExposureSkipping(false);
+
+            DataTainted = false;
 
             _pins.Clear();
             _ledger.Clear();

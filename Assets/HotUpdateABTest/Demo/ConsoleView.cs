@@ -100,6 +100,13 @@ namespace HotUpdateABTest.Demo
             _bannerForced.visible = visible;
 
             var title = _bannerForced.GetChild("title");
+
+            // Shrink to fit. The banner is authored 420 wide, single line, autoSize none, so a second
+            // reason was clipped with no mark on screen - the string held it and the only tell was the
+            // separator changing. Shrinking keeps every reason legible rather than silently dropping one.
+            // A wider banner would be better than a smaller font; this is the half that does not need
+            // re-authoring.
+            if (title is GTextField field) field.autoSize = AutoSizeType.Shrink;
             if (title != null) title.text = text;
         }
 

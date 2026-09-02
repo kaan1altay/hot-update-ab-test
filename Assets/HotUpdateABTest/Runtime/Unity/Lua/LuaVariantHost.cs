@@ -36,9 +36,11 @@ namespace HotUpdateABTest.Lua
         public string Describe() =>
             FilesLoaded + " file(s) loaded (" + PatchesLoaded + " patch), " + FilesFailed +
             " failed, " + BehaviorCount + " behaviors registered" +
-            (PatchNames.Count == 0
-                ? ", no patch files in the folder"
-                : "; patches in load order, last wins: " + string.Join(", ", PatchNames));
+            (PatchNames.Count > 0
+                ? "; patches in load order, last wins: " + string.Join(", ", PatchNames)
+                : FilesFailed > 0
+                    ? "; no patch is running - see the failures above"
+                    : "; no patch files in the folder");
 
         /// <inheritdoc />
         public override string ToString() => Describe();
@@ -260,7 +262,12 @@ namespace HotUpdateABTest.Lua
                     if (!read.IsValid)
                     {
                         rejectionToken = SpecRejection.Token(read.Issues);
-                        LogOnce("spec.invalid." + behaviorKey,
+                        // Error, not Warning. The row used to call itself both: the severity was Warning
+                        // while the text began "error:", because ValidationResult labels every issue that
+                        // way and the row level was decided separately. The patch author sent something
+                        // the screen cannot render and the treatment was not applied - rendering control
+                        // is what should happen after an error, not evidence it was a warning.
+                        LogOnce(AbLogLevel.Error, "spec.invalid." + behaviorKey,
                             "the spec from '" + behaviorKey + "' was rejected and renders control: " +
                             read.Issues.Describe());
                     }

@@ -171,7 +171,9 @@ namespace HotUpdateABTest.Demo
             _shop?.Apply(spec, _controller.LastRejectionToken);
 
             _console.SetStatus(_controller.Snapshot, DescribeServer(), DescribeScenario());
-            _console.SetForcedBanner(_controller.IsTainted, _controller.TaintDescription ?? "");
+            _console.SetForcedBanner(
+                _controller.IsTainted || _controller.DataTainted,
+                _controller.TaintDescription ?? "");
             _console.SetMetrics(_controller.BuildReport());
 
             _console.SetToggle("btnServerToggle", _controller.Server.IsRunning);

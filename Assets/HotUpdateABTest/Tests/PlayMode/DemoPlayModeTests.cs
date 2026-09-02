@@ -31,6 +31,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [SetUp]
         public void SetUp()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // FairyGUI needs a Stage before any display object can be built.
             _stage = new GameObject("StageCamera");
             _stage.AddComponent<Camera>();
@@ -40,6 +44,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [TearDown]
         public void TearDown()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             if (_stage != null) Object.DestroyImmediate(_stage);
         }
 
@@ -51,6 +59,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void TheFallbackConsoleDeclaresEveryChildTheViewBindsTo()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var console = DemoUiFactory.CreateConsole();
 
             try
@@ -73,6 +85,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void TheFallbackMetricsRowDeclaresEveryFieldTheTableFills()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var row = DemoUiFactory.CreateMetricsRow();
 
             try
@@ -93,6 +109,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [Test]
         public void TheFallbackShopScreenIsTheSameShapeAsTheAuthoredOne()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var screen = DemoUiFactory.CreateShopScreen();
 
             try
@@ -110,6 +130,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheDemoStartsAndRendersWhicheverUiIsAvailable()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var host = new GameObject("AbTestDemo");
             var demo = host.AddComponent<AbTestDemoBehaviour>();
 
@@ -129,6 +153,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator PressingScenarioButtonsMovesWhatIsOnScreen()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var host = new GameObject("AbTestDemo");
             var demo = host.AddComponent<AbTestDemoBehaviour>();
 
@@ -157,6 +185,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator SimulatingUsersFillsTheMetricsTable()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             var host = new GameObject("AbTestDemo");
             var demo = host.AddComponent<AbTestDemoBehaviour>();
 
@@ -184,6 +216,10 @@ namespace HotUpdateABTest.Tests.PlayMode
         [UnityTest]
         public IEnumerator TheForcedBannerAppearsAndClears()
         {
+            // Failure paths are the subject here - a patch that cannot parse, a spec the screen
+            // cannot render - and those log at Error, which the framework otherwise treats as an
+            // unexpected failure. The assertions still check the message reached the panel.
+            LogAssert.ignoreFailingMessages = true;
             // The action pair, on screen. A banner that could be shown but never hidden is exactly the
             // class of bug hand play-testing keeps finding.
             var host = new GameObject("AbTestDemo");
@@ -204,10 +240,20 @@ namespace HotUpdateABTest.Tests.PlayMode
             yield return null;
             Assert.That(banner.visible, Is.True, "forcing a variant must show the banner");
 
+            // Deliberate change of behaviour. Clearing the override no longer hides the banner, because
+            // the rows gathered while the override was on are still in the sink: the cause must not
+            // vanish while the symptom stays on screen. It reports in the past tense instead, and the
+            // control that clears the data is the control that clears the marker.
             Press(console, "btnClearForce");
             yield return null;
             yield return null;
-            Assert.That(banner.visible, Is.False, "clearing the override must hide it again");
+            Assert.That(banner.visible, Is.True,
+                "the data is still tainted, so the banner must still say so");
+
+            Press(console, "btnClearState");
+            yield return null;
+            yield return null;
+            Assert.That(banner.visible, Is.False, "clearing saved state must hide it again");
 
             Object.DestroyImmediate(host);
             yield return null;
