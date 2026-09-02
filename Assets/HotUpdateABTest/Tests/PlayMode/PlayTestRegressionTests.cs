@@ -595,6 +595,72 @@ namespace HotUpdateABTest.Tests.PlayMode
             return shop;
         }
 
+        // --- Finding 10: the bar and the light must not contradict each other --------------------------
+
+        [UnityTest]
+        public IEnumerator BelowTheFloorTheBarSaysUnmeasuredJustAsTheLightDoes()
+        {
+            // One user in the system. The light reads grey - unknown, correct, far below the chi-squared
+            // floor. The bar beside it read "100.0% / 50.0%" and drew itself full, which is a measured
+            // extreme. Two indicators, same state, opposite stories, and the index-aligned SrmState was
+            // supposed to make that impossible.
+            //
+            // The dash was gated on nobody at all being exposed, not on the measurement being below the
+            // floor, so with one exposed user it never appeared.
+            var console = Authored("ConsoleMain");
+            GRoot.inst.AddChild(console);
+            var view = new ConsoleView(console, new FairyBinder(new ListLog()), usingFallback: false);
+
+            view.SetMetrics(OneUserReport());
+            yield return null;
+
+            var list = console.GetChild("listMetrics") as GList;
+            list.EnsureBoundsCorrect();
+
+            int checkedBars = 0;
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                if (!(list.GetChildAt(i) is GComponent row)) continue;
+                if (!(row.GetChild("barShare") is GComponent bar)) continue;
+
+                var caption = bar.GetChild("txtShare") ?? bar.GetChild("title");
+                if (caption == null) continue;
+
+                checkedBars++;
+
+                Assert.That(caption.text, Is.EqualTo("-"),
+                    "the light says unmeasured and the bar says '" + caption.text + "'");
+
+                if (bar is GProgressBar progress)
+                {
+                    Assert.That(progress.value, Is.EqualTo(0.0).Within(0.001),
+                        "an unmeasured bar must not draw a fill; it drew " + progress.value + "%");
+                }
+            }
+
+            Assert.That(checkedBars, Is.GreaterThan(1), "not enough bars to be meaningful");
+
+            GRoot.inst.RemoveChild(console);
+            console.Dispose();
+        }
+
+        /// <summary>One exposed user - far below the ratio check's floor, so the verdict is unknown.</summary>
+        private static MetricsReport OneUserReport()
+        {
+            var aggregator = new MetricsAggregator();
+            var read = ConfigReader.Read(Transport.LocalConfigServer.PayloadFor(
+                Transport.ServerScenario.Normal, 1));
+
+            foreach (var kind in new[] { AnalyticsEventKind.Assignment, AnalyticsEventKind.Exposure })
+            {
+                aggregator.Record(new AnalyticsEvent(
+                    kind, "solo", new SessionId("s"), "exp_pricing_cta", "urgency", "pricing_cta", null,
+                    EventTraits.None, "1", new FixedClock().UtcNow));
+            }
+
+            return aggregator.Build(read.Config, MetricsPopulation.Analysis);
+        }
+
         // --- Finding 2: is the badge written, or is it a placeholder? -------------------------------------
 
         [Test]

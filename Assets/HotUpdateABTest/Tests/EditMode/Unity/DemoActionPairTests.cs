@@ -140,6 +140,113 @@ namespace HotUpdateABTest.Tests.Unity
             return SrmState.Unknown;
         }
 
+        // --- second play-test pass, finding 4: the banner is the only taint marker that survives a crop --
+
+        [Test]
+        public void BucketingSkewRaisesTheTaintBanner()
+        {
+            // A red toggle can be scrolled out of frame or cropped out of a still, leaving a viewer with a
+            // red ratio light and no stated cause. The banner is what survives into a single frame, so it
+            // has to cover every reason the data is untrustworthy, not only a forced variant.
+            _demo.SetBucketingSkew(true);
+
+            Assert.That(_demo.IsTainted, Is.True, "injected skew makes every subsequent number suspect");
+            Assert.That(_demo.TaintDescription, Does.Contain("skew").IgnoreCase,
+                "the banner must name the cause; it reads '" + _demo.TaintDescription + "'");
+        }
+
+        [Test]
+        public void SkippedExposureLoggingRaisesTheTaintBanner()
+        {
+            _demo.SetExposureSkipping(true);
+
+            Assert.That(_demo.IsTainted, Is.True);
+            Assert.That(_demo.TaintDescription, Does.Contain("exposure").IgnoreCase,
+                "it reads '" + _demo.TaintDescription + "'");
+        }
+
+        [Test]
+        public void TheTaintBannerNamesEveryReasonAtOnce()
+        {
+            _demo.OnButton("btnForceVariant");
+            _demo.SetBucketingSkew(true);
+            _demo.SetExposureSkipping(true);
+
+            string text = _demo.TaintDescription;
+
+            Assert.That(text, Does.Contain("FORCED"), "it reads '" + text + "'");
+            Assert.That(text, Does.Contain("skew").IgnoreCase, "it reads '" + text + "'");
+            Assert.That(text, Does.Contain("exposure").IgnoreCase, "it reads '" + text + "'");
+        }
+
+        [Test]
+        public void ClearingEveryBreakageClearsTheTaintBanner()
+        {
+            // The action pair. A marker that cannot be cleared is worse than none, because the next run
+            // inherits it and nobody trusts it again.
+            _demo.SetBucketingSkew(true);
+            _demo.SetExposureSkipping(true);
+            _demo.OnButton("btnForceVariant");
+            Assert.That(_demo.IsTainted, Is.True);
+
+            _demo.SetBucketingSkew(false);
+            _demo.SetExposureSkipping(false);
+            _demo.OnButton("btnClearForce");
+
+            Assert.That(_demo.IsTainted, Is.False, "it still reads '" + _demo.TaintDescription + "'");
+        }
+
+        // --- second play-test pass, finding 2: the chip must not claim a source it cannot reach ----------
+
+        [Test]
+        public void StoppingTheServerStopsTheChipClaimingLive()
+        {
+            // Needs a real socket: the shared fixture runs with preferHttp false, where stopping the
+            // server cannot change anything because nothing was being fetched over it. Skips cleanly when
+            // no port binds, the way the other transport tests do.
+            using (var http = new AbTestDemoController(_log, SystemClock.Instance, _lua.Host, preferHttp: true))
+            {
+                http.Start();
+                http.OnButton("btnScenarioNormal");
+
+                if (http.Snapshot.Source != ConfigSourceKind.Live)
+                {
+                    Assert.Ignore("no live HTTP source to demote from (no port bound)");
+                }
+
+                http.ToggleServer();
+
+                Assert.That(http.Snapshot.Source, Is.Not.EqualTo(ConfigSourceKind.Live),
+                    "the chip is on screen in every recording, and it went on claiming the server said " +
+                    "so while the server was stopped");
+            }
+        }
+
+        [Test]
+        public void StartingTheServerAgainReturnsTheChipToLive()
+        {
+            // The action pair. Demoting on stop is only half of it; if the chip could not climb back the
+            // recovery shot would be impossible.
+            using (var http = new AbTestDemoController(_log, SystemClock.Instance, _lua.Host, preferHttp: true))
+            {
+                http.Start();
+                http.OnButton("btnScenarioNormal");
+
+                if (http.Snapshot.Source != ConfigSourceKind.Live)
+                {
+                    Assert.Ignore("no live HTTP source to demote from (no port bound)");
+                }
+
+                http.ToggleServer();
+                Assert.That(http.Snapshot.Source, Is.Not.EqualTo(ConfigSourceKind.Live));
+
+                http.ToggleServer();
+
+                Assert.That(http.Snapshot.Source, Is.EqualTo(ConfigSourceKind.Live),
+                    "restarting the server must put the chip back to LIVE");
+            }
+        }
+
         // --- server ---------------------------------------------------------------------------------
 
         [Test]

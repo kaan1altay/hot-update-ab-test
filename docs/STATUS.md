@@ -125,6 +125,35 @@ person's leftovers decide the result. And the first version of them installed th
 demo, which reloads at startup — so the "before" reading was already the patched one and a working patch
 looked like a no-op. Boot clean, install, then press the button, which is what a person does anyway.
 
+## Findings 4, 2 and 10 — the three that were on screen in every recording
+
+**The banner covered one taint reason out of three.** Only a forced variant raised it; injected bucketing
+skew and suppressed exposure logging did not. That matters for recording rather than for correctness: a
+red toggle can be scrolled out of frame or cropped out of a still, leaving a viewer with a red ratio light
+and no stated cause, and the banner is the marker that survives into a single frame. `IsForced` is now
+joined by `IsTainted` and `TaintDescription`, which name **every** active reason rather than the first —
+two faults at once is a state someone will reach on camera, and a banner naming one of them invites the
+reader to fix that one and trust the rest. Clearing all three clears the banner, which is asserted.
+
+**The source chip claimed LIVE while the server was stopped.** The configuration in force does not change
+when a fetch fails — that is the whole point of the ladder — but the *rung* does: it is no longer
+live-confirmed. `HandleUnreachable` kept the snapshot untouched, so the chip went on reporting that the
+server had said so. It now demotes `Live` to `LastKnownGood`, which is the missing half of a pair that
+already existed in the other direction, where an unchanged payload from a reachable server restores
+`Live`. Neither direction raises `ConfigChanged`, because not one user's assignment moves.
+
+Reproducing it needed a real socket. The first attempt ran on the shared fixture, which uses
+`preferHttp: false` — where stopping the server cannot change anything, because nothing was being fetched
+over it. The test passed while the defect was live, which is the same shape as every other false green in
+this repository: the fixture could not express the fault.
+
+**The bar and the light contradicted each other about the same state.** One user in the system: the light
+read grey, correctly, far below the chi-squared floor, while the bar beside it drew itself full and
+captioned `100.0% / 50.0%`. The page selection was gated on the verdict, but the fill and the caption were
+not — the dash was gated on *nobody at all* being exposed rather than on the measurement being below the
+floor, so with one exposed user it never appeared. All three now read from the verdict, which is what the
+index-aligned `SrmState` was for.
+
 ## Running the tests
 
 **The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
@@ -164,23 +193,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 332 | 332 passed, 0 skipped |
-| Unity PlayMode batchmode | 31 | 31 passed |
+| Unity EditMode batchmode | 338 | 338 passed, 0 skipped |
+| Unity PlayMode batchmode | 32 | 32 passed |
 
 ### How the suites overlap
 
-**363 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**370 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **94** | 238 + 94 = the 332 EditMode total |
-| PlayMode tests | **31** | no overlap with EditMode |
-| **Distinct** | **363** | |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **100** | 238 + 100 = the 338 EditMode total |
+| PlayMode tests | **32** | no overlap with EditMode |
+| **Distinct** | **370** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 601, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 608, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.
@@ -309,13 +338,14 @@ reliably catches, so it is worth catching first.
 | `btnScenarioPause` | `btnScenarioNormal` | `PauseThenNormalRestoresOnlyThePausedExperiment` |
 | `btnScenarioWeights` | `btnScenarioNormal` — **asymmetric, see below** | `RestoringTheWeightsDoesNotRestoreTheArmsOfUsersAlreadyExposed` |
 | `btnForceVariant` | `btnClearForce`, or cycling past the last arm | `ForcingAVariantThenClearingItRestoresBucketing`, `CyclingTheOverridePastTheLastArmClearsIt` |
-| `btnInjectSkew` | press again | `BucketingSkewBreaksTheRatioAndFixingItRecovers` |
-| `btnSkipExposure` | press again | `SkipExposureBreaksTheRatioAndFixingItRecovers` |
-| `btnServerToggle` (stop) | press again — the port is released and reclaimed | `TheServerCanBeStoppedAndStartedAgain` |
+| `btnInjectSkew` | press again — also raises and clears the taint banner | `BucketingSkewBreaksTheRatioAndFixingItRecovers`, `BucketingSkewRaisesTheTaintBanner` |
+| `btnSkipExposure` | press again — also raises and clears the taint banner | `SkipExposureBreaksTheRatioAndFixingItRecovers`, `SkippedExposureLoggingRaisesTheTaintBanner` |
+| `btnServerToggle` (stop) | press again — the port is released and reclaimed, and the source chip demotes to LKG and climbs back | `TheServerCanBeStoppedAndStartedAgain`, `StoppingTheServerStopsTheChipClaimingLive`, `StartingTheServerAgainReturnsTheChipToLive` |
 | `btnSimulate` | `btnClearState` | `ResetUndoesEveryStateAtOnce` |
 | Drop a Lua patch, `btnReloadPatches` | delete it, `btnReloadPatches` | `DeletingAPatchAndReloadingRevertsToTheBaseline` |
 | Reload repeatedly | no-op; reload rebuilds rather than diffs, so it cannot double-register | `ReloadingTheSamePatchTwiceChangesNothing` |
 | A broken patch is skipped | fix or remove it; the log-once key clears on a clean reload | `ABrokenPatchIsReportedOncePerReloadRatherThanOnEveryCall` |
+| Any combination of taints | clear each one — the banner names every active reason, not the first | `TheTaintBannerNamesEveryReasonAtOnce`, `ClearingEveryBreakageClearsTheTaintBanner` |
 | **anything at all** | `btnClearState` | `ResetUndoesEveryStateAtOnce`, `ResetIsIdempotent` |
 
 **The one deliberate asymmetry.** Ramping the weights and putting them back does *not* return an

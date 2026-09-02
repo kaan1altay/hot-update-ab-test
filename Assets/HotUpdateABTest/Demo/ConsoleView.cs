@@ -216,16 +216,22 @@ namespace HotUpdateABTest.Demo
                 // Value before title, and it matters: GProgressBar.Update rewrites the title from its
                 // titleType whenever the value changes, so setting the title first would have it silently
                 // replaced with a bare percentage.
-                if (bar is GProgressBar progress) progress.value = variant.ObservedShare * 100.0;
+                // Gated on the experiment's own verdict, not on whether anybody at all was exposed. With
+                // one user in the system the light reads unknown and the bar used to draw itself full at
+                // "100.0% / 50.0%" - two indicators telling opposite stories about the same state. The
+                // floor is the whole point of the verdict, so both read from it.
+                bool measured = owner.Srm.State != SrmState.Unknown && owner.UsersExposed > 0;
+
+                if (bar is GProgressBar progress) progress.value = measured ? variant.ObservedShare * 100.0 : 0.0;
 
                 // "49.9% / 50.0%" rather than "49.9% (exp 50.0%)": eighteen characters at 16px bold is
                 // about 160px in a 130px bar, and shrinking the font would make the one cell a reviewer is
                 // meant to scan the smallest text in the table. The word moved into the column header
                 // (MetricsHeader.txtBarRate reads "share / expected"), which is where a unit belongs in a
                 // table rather than repeated in every row.
-                SetShareTitle(bar, owner.UsersExposed == 0
-                    ? "-"
-                    : Percent(variant.ObservedShare) + " / " + Percent(variant.ExpectedShare));
+                SetShareTitle(bar, measured
+                    ? Percent(variant.ObservedShare) + " / " + Percent(variant.ExpectedShare)
+                    : "-");
 
                 _binder.SelectPage(bar.GetController("state"), SharePage(owner, variant), "barShare");
             }

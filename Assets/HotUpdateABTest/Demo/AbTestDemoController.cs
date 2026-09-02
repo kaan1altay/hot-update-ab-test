@@ -103,6 +103,36 @@ namespace HotUpdateABTest.Demo
             }
         }
 
+
+        /// <summary>True when anything makes the numbers on screen untrustworthy.</summary>
+        /// <remarks>
+        /// Wider than <see cref="IsForced"/> on purpose. A forced variant, injected bucketing skew and
+        /// suppressed exposure logging all poison the data, and the banner is the only marker that
+        /// survives a crop: a toggle can be scrolled out of frame, leaving a viewer with a red ratio
+        /// light and no stated cause.
+        /// </remarks>
+        public bool IsTainted => IsForced || BucketingSkewBreakage || SkipExposureBreakage;
+
+        /// <summary>Every active reason the data is untrustworthy, or null when there is none.</summary>
+        /// <remarks>
+        /// Every reason, not the first one. Two faults at once are a state someone will reach on camera,
+        /// and a banner that names one of them invites the reader to fix that one and trust the rest.
+        /// </remarks>
+        public string TaintDescription
+        {
+            get
+            {
+                if (!IsTainted) return null;
+
+                var reasons = new List<string>();
+                if (IsForced) reasons.Add(ForcedDescription);
+                if (BucketingSkewBreakage) reasons.Add("BROKEN: bucketing skew injected");
+                if (SkipExposureBreakage) reasons.Add("BROKEN: variant 'urgency' is not logging exposures");
+
+                return string.Join("; ", reasons.ToArray()) + " - these numbers are not evidence";
+            }
+        }
+
         /// <summary>Creates the demo. Nothing is fetched until <see cref="Start"/>.</summary>
         public AbTestDemoController(
             IAbLog log,
@@ -204,6 +234,13 @@ namespace HotUpdateABTest.Demo
         {
             if (_server.IsRunning) _server.Stop();
             else _server.Start();
+
+            // Refresh either way. Without this the snapshot keeps whatever it last fetched, so the source
+            // chip goes on reading LIVE - green, and claiming the server said so - while the server is
+            // stopped. SetScenario already refreshes for exactly this reason; the asymmetry was the bug.
+            // On a stop the fetch fails and the ladder demotes to last-known-good, which is the true
+            // state; on a start it succeeds and the chip returns to LIVE.
+            _config.Refresh();
         }
 
         /// <summary>Changes what the server serves and fetches immediately.</summary>

@@ -407,6 +407,20 @@ namespace HotUpdateABTest.Core.Config
                 ConsecutiveFailures++;
                 LastFailureReason = error;
 
+                // The configuration in force does not change - that is the whole point of the ladder -
+                // but the rung does. It is no longer live-confirmed, because the server that supplied it
+                // cannot be reached, and a status display that goes on reading LIVE is reporting
+                // something untrue in every frame of every recording. Demoting here is the missing half
+                // of a pair: the climb back already exists, where an unchanged payload from a reachable
+                // server restores Live without raising ConfigChanged.
+                //
+                // No event is raised, because not one user's assignment moves.
+                if (_snapshot.Source == ConfigSourceKind.Live)
+                {
+                    _snapshot = new ConfigSnapshot(
+                        _snapshot.Config, ConfigSourceKind.LastKnownGood, _clock.UtcNow);
+                }
+
                 LogOnce(AbLogLevel.Warning, "source.unreachable." + error, "config source",
                     _source.Description + " could not be reached (" + error + "), keeping " +
                     DescribeCurrentRung());
