@@ -157,6 +157,45 @@ namespace HotUpdateABTest.Tests.Unity
         }
 
         [Test]
+        public void TheLayoutSwapExampleSwapsBothLayoutArms()
+        {
+            Install("40-layout-swap.lua");
+
+            Assert.That(PresentLayout("control", "shop.offer_layout.control").Layout,
+                Is.EqualTo(OfferLayout.Grid), "control was list and must become grid");
+            Assert.That(PresentLayout("grid_v2", "shop.offer_layout.grid_v2").Layout,
+                Is.EqualTo(OfferLayout.List), "grid_v2 was grid and must become list");
+        }
+
+        [Test]
+        public void TheBadLayoutValueExampleReachesTheEnumCheckRatherThanTheOwnershipCheck()
+        {
+            // The whole reason this example owns the layout group. A pricing behaviour writing 'layout'
+            // is refused for the wrong reason - ownership is validated before the value is looked at.
+            Install("50-bad-layout-value.lua");
+
+            var spec = PresentLayout("control", "shop.offer_layout.control");
+
+            Assert.That(spec, Is.EqualTo(PresentationSpec.Baseline), "a rejected spec renders control");
+            Assert.That(_fixture.Log.All, Does.Contain("carousel"),
+                "the log must name the value it refused");
+        }
+
+        private PresentationSpec PresentLayout(string variantId, string behavior)
+        {
+            var variant = new VariantDef(variantId, 5000, behavior);
+            var experiment = new ExperimentDef(
+                "exp_offer_layout", "offer_layout", ExperimentStatus.Running, "salt", BucketRange.Full,
+                StickinessPolicy.StickyAfterExposure, new[] { variant });
+
+            var assignment = VariantAssignment.Assigned(
+                "offer_layout", experiment, variant, AssignmentSource.Bucketed, 1, 2, "v1");
+
+            return _fixture.Host.Present(
+                User(), assignment, SpecFieldGroup.Layout, PresentationSpec.Baseline, true);
+        }
+
+        [Test]
         public void TheNewVariantExampleRegistersANameTheBuildDoesNotKnow()
         {
             const string added = "shop.pricing_cta.flash_sale";

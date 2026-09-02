@@ -1,13 +1,19 @@
 # Example Lua patches
 
-Three patches you can drop into a running demo. They are the delivery mechanism this repository is about,
+Five patches you can drop into a running demo. They are the delivery mechanism this repository is about,
 so they are here as files you can copy rather than as snippets you have to retype.
 
-| File | What it demonstrates |
-| --- | --- |
-| `10-flash-sale.lua` | Changing what an existing variant presents. Visible immediately. |
-| `20-rejected-spec.lua` | A patch that breaks the rules and is refused, with the reason on screen. |
-| `30-new-variant.lua` | Registering a behaviour the build has never heard of, and why that alone is inert. |
+| File | Group | What it demonstrates |
+| --- | --- | --- |
+| `10-flash-sale.lua` | pricing | Changing what an arm presents. **Start here** — visible immediately. |
+| `20-rejected-spec.lua` | pricing | A patch that breaks the badge cap and is refused, with the reason on screen. |
+| `30-new-variant.lua` | pricing | Registering a behaviour the build has never heard of, and why that alone is inert. |
+| `40-layout-swap.lua` | layout | The other layer. Swaps the two arms, so it flips whichever one you are in. |
+| `50-bad-layout-value.lua` | layout | A value nothing was drawn for. The only way to reach the unknown-enum check. |
+
+Every one of them registers **both arms of its experiment**. A patch that targets one arm does nothing
+visible if your user id hashes into the other, and that is indistinguishable from a patch channel that is
+broken — which is exactly how one play-test pass lost a session.
 
 ## Where they go
 
@@ -18,8 +24,21 @@ line. On Windows it is:
 %USERPROFILE%\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches\
 ```
 
-Copy a file in, press **Reload Lua patches** in the LiveOps panel, and read the log line: it reports how
-many files loaded and how many behaviours are registered. Delete the file and reload again to revert.
+Copy a file in, press **Reload Lua patches** in the LiveOps panel, and read the log line. It names every
+patch file it loaded, in load order:
+
+```
+Lua reloaded: 3 file(s) loaded (1 patch), 0 failed, 4 behaviors registered;
+patches in load order, last wins: 10-flash-sale.lua
+```
+
+**Read that line before concluding a patch does not work.** Files load in sorted order and later
+registrations win, so a file left over from an earlier experiment can quietly outrank the one you just
+added — and if the leftover is `20-rejected-spec.lua`, every reload renders a rejection no matter what
+else is in the folder. If the line says *no patch files in the folder*, the file is not where the demo is
+reading; the startup log names that folder.
+
+Delete the file and reload again to revert.
 Reverting works because reload rebuilds the registry from the baseline up rather than applying a delta, so
 removing a patch removes its effect — the half of hot update that is easy to skip demonstrating.
 

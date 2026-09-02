@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections;
 using System.IO;
 using FairyGUI;
@@ -6,6 +7,7 @@ using HotUpdateABTest.Core.Model;
 using HotUpdateABTest.Core.Presentation;
 using HotUpdateABTest.Core.Telemetry;
 using HotUpdateABTest.Demo;
+using HotUpdateABTest.Lua;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -252,6 +254,345 @@ namespace HotUpdateABTest.Tests.PlayMode
 
             Object.DestroyImmediate(host);
             yield return null;
+        }
+
+        // --- Finding 11: does a patch in the real folder change the real screen? ------------------------
+
+        [UnityTest]
+        public IEnumerator APatchInTheRealPatchFolderChangesTheRunningShop()
+        {
+            // The play-test could never get a patch to visibly apply, so the repository's headline claim
+            // was the one thing nobody had confirmed by hand. Everything else that exercises Lua uses a
+            // temporary baseline and a temporary patch root; this writes into the folder the demo
+            // actually reads, boots the authored package, and reads the text off the button.
+            //
+            // Both pricing arms are registered, so the assertion does not depend on which arm the local
+            // player's hash lands in.
+            string root = Path.Combine(Application.persistentDataPath, LuaPatchLoader.PatchFolderName);
+            Directory.CreateDirectory(root);
+            string file = Path.Combine(root, "zz-probe-" + System.Guid.NewGuid().ToString("N") + ".lua");
+            File.WriteAllText(file,
+                "register('shop.pricing_cta.control', function(ctx) return { ctaText = 'PATCHED' } end)\n" +
+                "register('shop.pricing_cta.urgency', function(ctx) return { ctaText = 'PATCHED' } end)\n");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                var console = demo.ConsoleRoot;
+                var device = UiValidator.Deep(console, "containerDevice") as GComponent;
+                var shop = device?.GetChild("ShopScreen") as GComponent;
+                Assert.That(shop, Is.Not.Null, "no shop screen");
+
+                var cta = shop.GetChild("btnCta");
+                Assert.That(cta, Is.Not.Null, "no btnCta on the authored shop screen");
+                string before = CtaText(cta);
+
+                Press(console, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                Assert.That(CtaText(cta), Is.EqualTo("PATCHED"),
+                    "the button read '" + before + "' before the reload and '" + CtaText(cta) +
+                    "' after it; a patch in " + root + " did not reach the screen");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator DeletingThePatchAndReloadingPutsTheShippedTextBack()
+        {
+            // Test 20 of the play-test, which could not run until a patch applied at all. Reload rebuilds
+            // the registry from the baseline up rather than applying a delta, so removing a file removes
+            // its effect - the half of hot update that is easy to skip demonstrating.
+            string root = Path.Combine(Application.persistentDataPath, LuaPatchLoader.PatchFolderName);
+            Directory.CreateDirectory(root);
+            string file = Path.Combine(root, "zz-probe-" + System.Guid.NewGuid().ToString("N") + ".lua");
+            File.WriteAllText(file,
+                "register('shop.pricing_cta.control', function(ctx) return { ctaText = 'PATCHED' } end)\n" +
+                "register('shop.pricing_cta.urgency', function(ctx) return { ctaText = 'PATCHED' } end)\n");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                var console = demo.ConsoleRoot;
+                var device = UiValidator.Deep(console, "containerDevice") as GComponent;
+                var shop = device.GetChild("ShopScreen") as GComponent;
+                var cta = shop.GetChild("btnCta");
+
+                Press(console, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+                Assert.That(CtaText(cta), Is.EqualTo("PATCHED"), "the patch must apply before it can revert");
+
+                File.Delete(file);
+                Press(console, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                Assert.That(CtaText(cta), Is.Not.EqualTo("PATCHED"),
+                    "removing the file and reloading must put the shipped behaviour back");
+                // Is.AnyOf is not in Unity's bundled NUnit 3.5 - see the parity note in STATUS.md.
+                string restored = CtaText(cta);
+                Assert.That(restored == "Buy" || restored == "Claim offer", Is.True,
+                    "and it must be one of the two shipped labels, not empty; it reads '" + restored + "'");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+        }
+
+        private static string CtaText(GObject cta)
+        {
+            if (cta is GButton button) return button.title;
+            if (cta is GComponent component && component.GetChild("title") != null)
+                return component.GetChild("title").text;
+            return cta.text;
+        }
+
+        /// <summary>The examples folder, beside Assets/ rather than inside it.</summary>
+        private static string ExamplesRoot =>
+            Path.GetFullPath(Path.Combine(Application.dataPath, "..", "examples", "lua-patches"));
+
+        /// <summary>The folder the running demo actually reads.</summary>
+        private static string LivePatchRoot =>
+            Path.Combine(Application.persistentDataPath, LuaPatchLoader.PatchFolderName);
+
+        /// <summary>Copies one example into the live patch folder and returns the path written.</summary>
+        private static string InstallExample(string fileName)
+        {
+            string source = Path.Combine(ExamplesRoot, fileName);
+            Assert.That(File.Exists(source), Is.True, "the example is missing: " + source);
+
+            Directory.CreateDirectory(LivePatchRoot);
+            string target = Path.Combine(LivePatchRoot, "zz-e2e-" + fileName);
+            File.Copy(source, target, true);
+            return target;
+        }
+
+        /// <summary>
+        /// Moves whatever patches a human left in the live folder out of the way, and puts them back.
+        /// </summary>
+        /// <remarks>
+        /// These tests read the folder a person hand-tests in, which is the point - a temporary root
+        /// would not prove the demo reads the folder the startup log names. But it means someone else's
+        /// leftovers decide the result. That is not hypothetical: a play-test pass could never make a
+        /// patch apply, and the cause was a deliberately-rejected example still sitting in this folder
+        /// under a name that sorted first. Borrowing the folder and giving it back keeps both properties.
+        /// </remarks>
+        private sealed class BorrowedPatchFolder : System.IDisposable
+        {
+            private readonly List<KeyValuePair<string, string>> _moved =
+                new List<KeyValuePair<string, string>>();
+
+            public BorrowedPatchFolder()
+            {
+                Directory.CreateDirectory(LivePatchRoot);
+                string parked = Path.Combine(LivePatchRoot, "parked-by-tests");
+                Directory.CreateDirectory(parked);
+
+                foreach (string path in Directory.GetFiles(LivePatchRoot, "*.lua"))
+                {
+                    string to = Path.Combine(parked, Path.GetFileName(path));
+                    File.Copy(path, to, true);
+                    File.Delete(path);
+                    _moved.Add(new KeyValuePair<string, string>(path, to));
+                }
+            }
+
+            public void Dispose()
+            {
+                foreach (var pair in _moved)
+                {
+                    try
+                    {
+                        File.Copy(pair.Value, pair.Key, true);
+                        File.Delete(pair.Value);
+                    }
+                    catch (System.Exception)
+                    {
+                        // Leaving a copy in parked-by-tests is recoverable; throwing here would hide the
+                        // real assertion failure behind a cleanup one.
+                    }
+                }
+
+                try
+                {
+                    string parked = Path.Combine(LivePatchRoot, "parked-by-tests");
+                    if (Directory.Exists(parked) && Directory.GetFiles(parked).Length == 0)
+                        Directory.Delete(parked);
+                }
+                catch (System.Exception)
+                {
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TheFlashSaleExampleChangesTheAuthoredShopScreen()
+        {
+            // Exactly what a reader does: copy the file the repository ships into the folder the demo
+            // reads, press the button, look at the screen. Against the authored package, not the
+            // fallback - the fallback's button is a different object and would prove nothing about the
+            // thing on camera.
+            using (new BorrowedPatchFolder())
+            {
+            // Boot with the folder empty. The demo reloads patches at startup, so a file
+            // installed first is already in force before the button is ever pressed, and the
+            // "before" reading would be the patched one.
+            string installed = null;
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                Assert.That(demo.UsingFallbackUi, Is.False, "this must run against the authored package");
+
+                var shop = ShopOf(demo);
+                var cta = shop.GetChild("btnCta");
+
+                installed = InstallExample("10-flash-sale.lua");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                Assert.That(CtaText(cta), Is.EqualTo("Grab it now"),
+                    "the call to action reads '" + CtaText(cta) + "'");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(installed)) File.Delete(installed);
+            }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TheLayoutSwapExampleChangesTheArrangement()
+        {
+            // The other layer, and the proof the two compose rather than collide: this one writes only
+            // 'layout' and leaves the pricing copy alone.
+            using (new BorrowedPatchFolder())
+            {
+            // Boot with the folder empty. The demo reloads patches at startup, so a file
+            // installed first is already in force before the button is ever pressed, and the
+            // "before" reading would be the patched one.
+            string installed = null;
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                // Pin the config first. Without a scenario the boot config decides whether the layout
+                // experiment is running at all, and an unassigned layer never calls Lua - so the patch
+                // would look broken when it is simply not being consulted.
+                Press(demo.ConsoleRoot, "btnScenarioNormal");
+                for (int i = 0; i < 3; i++) yield return null;
+                Press(demo.ConsoleRoot, "btnRefresh");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                // Read the debug strip rather than an internal - it is the artefact on camera, and its
+                // first value is the arrangement.
+                var strip = ShopOf(demo).GetChild("txtSpec");
+                Assert.That(strip, Is.Not.Null, "no txtSpec strip");
+                string before = strip.text;
+
+                installed = InstallExample("40-layout-swap.lua");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                Assert.That(strip.text, Is.Not.EqualTo(before),
+                    "the arrangement must flip; the strip still reads '" + before + "'. " +
+                    LogTail(demo.ConsoleRoot));
+                Assert.That(Arrangement(strip.text), Is.Not.EqualTo(Arrangement(before)),
+                    "'" + before + "' became '" + strip.text + "'");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(installed)) File.Delete(installed);
+            }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TheBadLayoutValueExampleReachesTheUnknownEnumCheck()
+        {
+            // The whole reason this example exists. Owning the layout group is what gets past the field
+            // ownership rule, which is what the play-test's 'carousel' attempt kept tripping first.
+            using (new BorrowedPatchFolder())
+            {
+            // Boot with the folder empty. The demo reloads patches at startup, so a file
+            // installed first is already in force before the button is ever pressed, and the
+            // "before" reading would be the patched one.
+            string installed = null;
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                installed = InstallExample("50-bad-layout-value.lua");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                var strip = ShopOf(demo).GetChild("txtSpec");
+                Assert.That(strip, Is.Not.Null, "no txtSpec strip");
+
+                Assert.That(strip.text, Does.Contain("bad enum value"),
+                    "the strip should carry the enum rejection, not the ownership one; it reads '" +
+                    strip.text + "'");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(installed)) File.Delete(installed);
+            }
+            }
+        }
+
+        /// <summary>The first value on the debug strip, which is the arrangement.</summary>
+        private static string Arrangement(string strip) =>
+            string.IsNullOrEmpty(strip) ? "" : strip.Split(' ')[0];
+
+        /// <summary>The tail of the on-screen log, so a failure says what the demo thought it did.</summary>
+        private static string LogTail(GComponent console, int lines = 12)
+        {
+            var list = UiValidator.Deep(console, "listLog") as GList;
+            if (list == null) return "(no log panel)";
+
+            var sb = new System.Text.StringBuilder("log tail:");
+            int from = list.numChildren > lines ? list.numChildren - lines : 0;
+            for (int i = from; i < list.numChildren; i++)
+            {
+                if (!(list.GetChildAt(i) is GComponent row)) continue;
+                var title = row.GetChild("title");
+                if (title != null) sb.AppendLine().Append("  ").Append(title.text);
+            }
+
+            return sb.ToString();
+        }
+
+        private static GComponent ShopOf(AbTestDemoBehaviour demo)
+        {
+            var device = UiValidator.Deep(demo.ConsoleRoot, "containerDevice") as GComponent;
+            var shop = device?.GetChild("ShopScreen") as GComponent;
+            Assert.That(shop, Is.Not.Null, "no shop screen in the device container");
+            return shop;
         }
 
         // --- Finding 2: is the badge written, or is it a placeholder? -------------------------------------

@@ -23,10 +23,22 @@ namespace HotUpdateABTest.Lua
         /// <summary>How many of the loaded files came from the patch root.</summary>
         public int PatchesLoaded { get; internal set; }
 
+        /// <summary>The patch files that loaded, in the order they loaded.</summary>
+        /// <remarks>
+        /// Named rather than merely counted because later registrations win, so the order is the answer
+        /// to "which patch is actually in force". A play-test pass spent a session unable to make any
+        /// patch apply, and the cause was a deliberately-rejected example left in the folder under a name
+        /// that sorted first: the count said "1 patch" and the screen said nothing at all.
+        /// </remarks>
+        public IReadOnlyList<string> PatchNames { get; internal set; } = new string[0];
+
         /// <summary>One line for the log panel.</summary>
         public string Describe() =>
             FilesLoaded + " file(s) loaded (" + PatchesLoaded + " patch), " + FilesFailed +
-            " failed, " + BehaviorCount + " behaviors registered";
+            " failed, " + BehaviorCount + " behaviors registered" +
+            (PatchNames.Count == 0
+                ? ", no patch files in the folder"
+                : "; patches in load order, last wins: " + string.Join(", ", PatchNames));
 
         /// <inheritdoc />
         public override string ToString() => Describe();
@@ -100,6 +112,8 @@ namespace HotUpdateABTest.Lua
             var report = new LuaReloadReport();
             if (!IsReady) return LastReload = report;
 
+            var patchNames = new List<string>();
+
             _reset.Call();
 
             foreach (var file in _loader.Discover())
@@ -121,9 +135,14 @@ namespace HotUpdateABTest.Lua
                 }
 
                 report.FilesLoaded++;
-                if (file.IsPatch) report.PatchesLoaded++;
+                if (file.IsPatch)
+                {
+                    report.PatchesLoaded++;
+                    patchNames.Add(file.Name);
+                }
             }
 
+            report.PatchNames = patchNames;
             report.BehaviorCount = BehaviorCount();
 
             if (report.FilesFailed == 0) _loggedOnce.Clear();

@@ -90,6 +90,41 @@ fix and watching both tests go red.
 `list` is the baseline layout — what renders with no experiment applied and after every rejected spec —
 so this was on screen in the kill-switch and fallback shots.
 
+## Finding 11 — why no patch ever seemed to apply
+
+A whole play-test session failed to make a single Lua patch visibly change the demo, which made the
+repository's headline claim the one thing nobody had confirmed by hand. The mechanism was never broken.
+The patch folder contained one file, `AAA.lua`, and it was a copy of the deliberately-rejected example
+saved under a name that sorts first. Every reload dutifully loaded it and rendered the rejection.
+
+Three things were wrong, and only one of them was the person testing.
+
+**Patches were counted, never named.** The reload line said `1 patch loaded` and nothing else, so a
+leftover file was invisible unless you went looking in `AppData`. It now names every patch file in load
+order and says *last wins*, because that ordering is the answer to "which patch is actually in force". It
+also says *no patch files in the folder* rather than silently reporting zero.
+
+**The examples targeted one arm each.** A patch registering only `shop.pricing_cta.urgency` does nothing
+observable if your id hashes into `control`, and that is indistinguishable from a broken patch channel.
+Every example now registers both arms of its experiment.
+
+**There was no example that could reach the enum check.** Trying `layout = 'carousel'` from a pricing
+behaviour is refused for field ownership before the value is ever looked at — correct, and a
+validation-ordering fact nobody recovers by reading the code. `50-bad-layout-value.lua` owns the layout
+group, so it gets past ownership and reaches the enum rule. `40-layout-swap.lua` is the valid counterpart
+and swaps the two layout arms rather than pinning both, since pinning to `grid` looks identical to a patch
+that did nothing if you were already on grid.
+
+Five examples now run end to end against the authored package in `PlayTestRegressionTests`: copied from
+`examples/lua-patches/` into the folder the demo actually reads, reloaded through the button, and read
+back off the screen. Test 20 — delete the patch, does it revert — passes too, which it could not before.
+
+Two test-hygiene notes came out of it. Those tests read the folder a human hand-tests in, so they borrow
+it and give it back: existing patches are parked for the duration and restored afterwards, or the next
+person's leftovers decide the result. And the first version of them installed the patch before booting the
+demo, which reloads at startup — so the "before" reading was already the patched one and a working patch
+looked like a no-op. Boot clean, install, then press the button, which is what a person does anyway.
+
 ## Running the tests
 
 **The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
@@ -129,23 +164,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 330 | 330 passed, 0 skipped |
-| Unity PlayMode batchmode | 26 | 26 passed |
+| Unity EditMode batchmode | 332 | 332 passed, 0 skipped |
+| Unity PlayMode batchmode | 31 | 31 passed |
 
 ### How the suites overlap
 
-**356 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**363 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **92** | 238 + 92 = the 330 EditMode total |
-| PlayMode tests | **26** | no overlap with EditMode |
-| **Distinct** | **356** | |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **94** | 238 + 94 = the 332 EditMode total |
+| PlayMode tests | **31** | no overlap with EditMode |
+| **Distinct** | **363** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 594, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 601, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.

@@ -5,8 +5,8 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
-Unity 6 · C# · xLua · FairyGUI · **356 tests**: 238 engine-free core tests that run under `dotnet test` in
-CI *and* again inside Unity, plus 92 Unity-only EditMode tests and 26 PlayMode tests.
+Unity 6 · C# · xLua · FairyGUI · **363 tests**: 238 engine-free core tests that run under `dotnet test` in
+CI *and* again inside Unity, plus 94 Unity-only EditMode tests and 31 PlayMode tests.
 
 ---
 
@@ -50,8 +50,8 @@ alarms.
   record rather than by re-resolving, forced and synthetic traffic flagged and filtered, contamination
   detected rather than swallowed, and a sample-ratio check with floors so it cannot cry wolf.
 - **Hot-updatable variant behaviour.** A Lua patch dropped in a folder can change what a variant presents,
-  or register a whole new variant, with no C# change and no rebuild. `examples/lua-patches/` holds three
-  to try, including one that is refused on purpose. Registering an arm and *running* one are separate,
+  or register a whole new variant, with no C# change and no rebuild. `examples/lua-patches/` holds five
+  to try, across both layers, including two that are refused on purpose. Registering an arm and *running* one are separate,
   deliberately: the resolver picks variants from the config, so a patch cannot enrol anyone in an
   experiment nobody configured.
 
@@ -73,8 +73,8 @@ speed: the Core assembly sets `noEngineReferences`, and CI greps for a Unity `us
 
 Unity's own suites run locally with the Editor closed — commands in `docs/STATUS.md`.
 
-Those 238 core tests are a strict subset of the 330 EditMode ones: the same source compiled twice. Summing
-the suites would count them twice, so the honest total is 356 distinct tests. `docs/STATUS.md` shows the
+Those 238 core tests are a strict subset of the 332 EditMode ones: the same source compiled twice. Summing
+the suites would count them twice, so the honest total is 363 distinct tests. `docs/STATUS.md` shows the
 set arithmetic.
 
 ### What the tests did not cover, and how that was found
@@ -155,7 +155,7 @@ Lua runs on desktop x64 only; the vendored xLua native plugin covers no other pl
 | `docs/DEMO_SCRIPT.md` | Recording order, with the still-frame tell for each beat |
 | `docs/PRESENTATION_SPEC.md` | What a Lua patch may ask the shop screen to present — the closed vocabulary |
 | `docs/PACKAGE_SPEC.md` | The FairyGUI package as authored, and how the code binds to it |
-| `examples/lua-patches/` | Three patches to drop into a running demo, and what each one proves |
+| `examples/lua-patches/` | Five patches to drop into a running demo, and what each one proves |
 
 ## Licence and provenance
 

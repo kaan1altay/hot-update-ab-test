@@ -5,8 +5,9 @@
 --- broken below. Load this to watch a bad patch fail the way it should.
 ---
 --- Expected result: the screen renders control, and the spec strip carries a marker naming the reason -
---- `[FALLBACK: text too long]` here. Swap which return is commented out to see `[FALLBACK: bad enum
---- value]` or `[FALLBACK: foreign field]` instead. The log carries the full sentence.
+--- `[FALLBACK: text too long]` here. The log carries the full sentence, naming the field, the actual
+--- length and the limit. Uncomment the alternative at the bottom for `[FALLBACK: foreign field]`; the
+--- unknown-enum case needs a patch that owns the layout group, which is `50-bad-layout-value.lua`.
 ---
 --- Three things are worth watching:
 ---
@@ -18,19 +19,21 @@
 ---     working control variant unless something on screen says otherwise.
 ---
 
-register('shop.pricing_cta.urgency', function(ctx)
+local function too_long(ctx)
     return {
         badgeText = 'ELEVENCHARS',   -- 11 characters; the cap is 10  -> text too long
         ctaText = 'Buy',             -- valid, and discarded anyway
     }
-end)
+end
 
--- Uncomment either of these instead to see a different reason token.
+-- Both arms, so the rejection is visible whichever one your id hashes into.
+register('shop.pricing_cta.control', too_long)
+register('shop.pricing_cta.urgency', too_long)
+
+-- Uncomment this instead to see a different reason token. `layout` is a perfectly valid field with a
+-- perfectly valid value - it just belongs to the other layer, and a pricing behaviour writing it would
+-- mean one experiment silently overwriting another's.
 --
 -- register('shop.pricing_cta.urgency', function(ctx)
---     return { layout = 'carousel' }      -- not an authored page      -> bad enum value
--- end)
---
--- register('shop.pricing_cta.urgency', function(ctx)
---     return { layout = 'grid' }          -- owned by the other layer  -> foreign field
+--     return { layout = 'grid' }          -- owned by the layout group -> foreign field
 -- end)

@@ -247,6 +247,43 @@ beside the offer name on a 335-wide card; `"BEST VALUE"` is exactly ten.
 
 ---
 
+## Binding hazards
+
+Three defects in this package were the same shape: **the library remembered something we thought we had
+replaced.** None of them is visible in the calling code, all three were found by measuring rather than by
+reading, and every one of them shipped green because the programmatic fallback has no gears, no
+`GProgressBar` and no groups, so it could not reproduce any of them.
+
+They are collected here because the mechanism generalises past this package, and because the tell is what
+saves the time — each has a number that identifies it on sight.
+
+| Hazard | Mechanism | The tell |
+| --- | --- | --- |
+| **Percent gears against a stale size** | A gear with `positionsInPercent` stores each position as a fraction of the parent, computed at authoring size. Applying a page puts the child at *fraction x whatever the parent measures right now*, so resizing before selecting the page multiplies every offset. | A child sits at a plausible-looking multiple of where it belongs. `txtName`'s fraction of 1.208 against a 190-tall card put it at **y=229.5** — outside a card 190 tall. |
+| **`GProgressBar` reclaiming its title** | A child named literally `title` is adopted as the bar's title object and rewritten from `titleType` inside `HandleSizeChanged` — on any layout pass, not merely a `value` write. | A caption you set is replaced by a bare percentage, one frame later, for no reason visible where you set it. `49.9% / 50.0%` becomes `0%`. |
+| **`SingleColumn` keeping the previous x** | `GList.DoLayout` under `SingleColumn` assigns `child.y` and never assigns `child.x`. Every x a previous `FlowHorizontal` pass wrote survives the switch. | Alternating offsets, and the offset equals a grid column position. Cards sat at **0, 172, 0, 172** where 172 is `163 + 9`, the grid card width plus the grid gap. |
+
+Two rules come out of it, and both are cheaper than remembering the three cases:
+
+**Prefer removing the mechanism to sequencing around it.** Each of these was first fixed by doing things in
+the right order — select the page before resizing, write the caption after the value — and each of those
+fixes worked while leaving the trap armed for whoever touched the code next. The second fix in each case
+removed the mechanism instead: the gears left percent mode, the caption child was renamed to `txtShare` so
+the bar never adopts it, and the list's x is now cleared on the switch because nothing else will clear it.
+Correct sequencing is a rule someone has to keep obeying; there is no order to get wrong once the
+mechanism is gone.
+
+**When a mode changes, assume the previous mode's writes survive.** All three are the same question asked
+three ways: *what did the old state write that the new state does not overwrite?* A library that computes
+`y` is not thereby computing `x`, and a component that adopts a child by name does not stop adopting it
+because you set the value first.
+
+The corollary for tests: a stand-in simpler than the thing it stands in for cannot test the thing it
+stands in for. `PlayTestRegressionTests` runs against the authored package specifically, and it has to let
+the wrong thing actually happen — the first version of the `SingleColumn` reproduction passed because it
+never let a grid layout pass run, so there was no stale x to inherit.
+
+
 ## Fallback
 
 The demo runs with **no package at all**. `DemoUiFactory` builds the entire console — top bar, device
