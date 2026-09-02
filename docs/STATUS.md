@@ -154,6 +154,30 @@ not — the dash was gated on *nobody at all* being exposed rather than on the m
 floor, so with one exposed user it never appeared. All three now read from the verdict, which is what the
 index-aligned `SrmState` was for.
 
+## Findings 7, 8 and 9 — a bad patch that reports, at the right severity
+
+**Finding 7 did not reproduce as reported, and the real mechanism is worse.** A file containing only
+`error('boom')` *is* caught, counted as failed, and logged with its filename and message — a test now
+asserts exactly that, and it passed the first time. What was missing is why a person watching the log saw
+nothing.
+
+The failure was logged once, keyed on `"patch.failed." + file.Path`. An author edits one file until it
+works, so every attempt lands at the same path — and every failure after the first was suppressed. A
+different error, in a file they had just changed, silently. That reads precisely like a patch channel that
+has stopped listening, and it is the behaviour the play-test hit. The key now includes the reason, so a
+newly broken file is reported while a permanently broken one still says so once. Both properties are
+asserted, because the fix could easily have lost the second.
+
+The comment above that key already claimed *"a newly broken file is never swallowed by an earlier one's
+line"*. It was wrong, and keying on the path could not have delivered it. A claim in a comment that no
+test checks is a claim that is not true yet.
+
+**Findings 8 and 9 were the same defect seen twice.** A patch that cannot be parsed, or cannot run, was
+reported at `Warning`. A file that is not running is not a caution about something that might matter
+later. Both now log at `Error` — which also answers finding 9: the `LogRow` controller's `err` page was
+unreachable because nothing in the demo ever emitted an error, so the third page of a three-page
+controller was dead. Raising the severity made it reachable rather than deleting it.
+
 ## Running the tests
 
 **The Unity Editor must be closed.** Unity refuses `-batchmode` while the Editor holds the project lock.
@@ -193,23 +217,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 338 | 338 passed, 0 skipped |
+| Unity EditMode batchmode | 343 | 343 passed, 0 skipped |
 | Unity PlayMode batchmode | 32 | 32 passed |
 
 ### How the suites overlap
 
-**370 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**375 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **100** | 238 + 100 = the 338 EditMode total |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **105** | 238 + 105 = the 343 EditMode total |
 | PlayMode tests | **32** | no overlap with EditMode |
-| **Distinct** | **370** | |
+| **Distinct** | **375** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 608, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 613, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.

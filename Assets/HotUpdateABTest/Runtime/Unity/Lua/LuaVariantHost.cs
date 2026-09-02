@@ -125,11 +125,21 @@ namespace HotUpdateABTest.Lua
                 {
                     report.FilesFailed++;
 
-                    // Keyed by file so a permanently broken patch says so once rather than on every reload,
-                    // but a *newly* broken file is never swallowed by an earlier one's line.
-                    LogOnce("patch.failed." + file.Path,
+                    string reason = Describe(result, 1);
+
+                    // Keyed by file *and* reason. Keying on the path alone was the bug: an author editing
+                    // one file until it works hits the same key every time, so the first failure was
+                    // reported and every later one - a different error, in a file they had just changed -
+                    // was swallowed. The comment claimed a newly broken file is never hidden by an
+                    // earlier line; keying on the path could not deliver that.
+                    //
+                    // Reported at Error, not Warning. A file that cannot be parsed or cannot run is not a
+                    // caution about something that might matter later, it is a patch that is not running.
+                    // It was also the reason the log panel's error page was unreachable: nothing in the
+                    // demo ever emitted one.
+                    LogOnce(AbLogLevel.Error, "patch.failed." + file.Path + "." + reason,
                         (file.IsPatch ? "patch" : "baseline") + " file '" + file.Name +
-                        "' was skipped: " + Describe(result, 1) +
+                        "' was skipped: " + reason +
                         ". Everything registered before it is unaffected.");
                     continue;
                 }
@@ -511,10 +521,12 @@ namespace HotUpdateABTest.Lua
             return result[index] as string ?? "no detail";
         }
 
-        private void LogOnce(string key, string message)
+        private void LogOnce(string key, string message) => LogOnce(AbLogLevel.Warning, key, message);
+
+        private void LogOnce(AbLogLevel level, string key, string message)
         {
             if (!_loggedOnce.Add(key)) return;
-            _log.Log(AbLogLevel.Warning, message);
+            _log.Log(level, message);
         }
 
         private void ThrowIfDisposed()

@@ -27,6 +27,22 @@ namespace HotUpdateABTest.Tests.Unity
         }
 
         public string All => string.Join("\n", Lines.ToArray());
+
+        /// <summary>The most severe level anything was logged at.</summary>
+        public AbLogLevel HighestLevel
+        {
+            get
+            {
+                var highest = AbLogLevel.Info;
+                foreach (string line in Lines)
+                {
+                    if (line.StartsWith("Error", StringComparison.Ordinal)) return AbLogLevel.Error;
+                    if (line.StartsWith("Warning", StringComparison.Ordinal)) highest = AbLogLevel.Warning;
+                }
+
+                return highest;
+            }
+        }
     }
 
     /// <summary>

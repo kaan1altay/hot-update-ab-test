@@ -1,3 +1,4 @@
+using HotUpdateABTest.Core;
 using HotUpdateABTest.Core.Assignment;
 using HotUpdateABTest.Core.Model;
 using HotUpdateABTest.Core.Presentation;
@@ -143,6 +144,82 @@ namespace HotUpdateABTest.Tests.Unity
             Assert.That(_fixture.Host.HasBehavior("shop.pricing_cta.first"), Is.False,
                 "the registration made before the throw must be discarded with the rest of the file");
             Assert.That(_fixture.Host.HasBehavior("shop.pricing_cta.second"), Is.False);
+        }
+
+        [Test]
+        public void APatchThatThrowsAtRegistrationSaysSoInTheLog()
+        {
+            // Finding 7. "One bad patch must not take the registry down" is only half the claim: if the
+            // bad patch also vanishes without a trace, the author has no way to learn their file is dead.
+            // The syntax-error path reports correctly; this is the one that did not, and the test that
+            // was supposed to cover it only asserted that nothing was committed.
+            _fixture.WritePatch("boom.lua", "error('boom')");
+
+            var report = _fixture.Host.Reload();
+
+            Assert.That(report.FilesFailed, Is.EqualTo(1), "the file must be counted as failed");
+            Assert.That(_fixture.Log.All, Does.Contain("boom.lua"),
+                "the log must name the file that died. It says:\n" + _fixture.Log.All);
+            Assert.That(_fixture.Log.All, Does.Contain("boom"),
+                "and must carry the message the patch threw");
+        }
+
+        [Test]
+        public void APatchThatThrowsAtRegistrationIsReportedAtErrorSeverity()
+        {
+            // Findings 8 and 9. A file that cannot run is an error, not a warning, and the log panel's
+            // error page was unreachable because nothing ever emitted one.
+            _fixture.WritePatch("boom.lua", "error('boom')");
+            _fixture.Host.Reload();
+
+            Assert.That(_fixture.Log.HighestLevel, Is.EqualTo(AbLogLevel.Error),
+                "a patch that cannot run is an error; the log says:\n" + _fixture.Log.All);
+        }
+
+        [Test]
+        public void APatchThatCannotBeParsedIsReportedAtErrorSeverity()
+        {
+            // Finding 8. This one was isolated cleanly and reported at warn. A file that cannot be parsed
+            // is not a warning about something that might matter later.
+            _fixture.WritePatch("bad.lua", "register('x', function( -- syntax error");
+            _fixture.Host.Reload();
+
+            Assert.That(_fixture.Log.HighestLevel, Is.EqualTo(AbLogLevel.Error),
+                "the log says:\n" + _fixture.Log.All);
+        }
+
+        [Test]
+        public void EachNewFailureInTheSameFileIsReported()
+        {
+            // The mechanism behind finding 7. An author edits one file until it works, so every attempt
+            // lands at the same path. Keyed on the path alone, the first failure was reported and every
+            // later one - a different error, in a file they had just changed - was silent, which reads
+            // exactly like a patch channel that has stopped listening.
+            _fixture.WritePatch("wip.lua", "error('first mistake')");
+            _fixture.Host.Reload();
+
+            _fixture.WritePatch("wip.lua", "error('second mistake')");
+            _fixture.Host.Reload();
+
+            Assert.That(_fixture.Log.All, Does.Contain("first mistake"));
+            Assert.That(_fixture.Log.All, Does.Contain("second mistake"),
+                "the second failure is a different error in a file that just changed, and it was " +
+                "swallowed by the first one's key. The log says:\n" + _fixture.Log.All);
+        }
+
+        [Test]
+        public void TheSameFailureRepeatedIsStillOnlyReportedOnce()
+        {
+            // The property the key exists for, which the fix must not lose: a permanently broken patch
+            // says so once rather than on every reload.
+            _fixture.WritePatch("stuck.lua", "error('same every time')");
+
+            _fixture.Host.Reload();
+            _fixture.Host.Reload();
+            _fixture.Host.Reload();
+
+            Assert.That(_fixture.Log.CountContaining("same every time"), Is.EqualTo(1),
+                "the log says:\n" + _fixture.Log.All);
         }
 
         [Test]
