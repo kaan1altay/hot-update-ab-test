@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="28,28">
-  <controller name="state" exported="true" pages="0,unknown,1,healthy,2,warn,3,alarm" selected="0"/>
+  <controller name="state" exported="true" pages="0,unknown,1,healthy,2,warn,3,alarm" selected="3"/>
   <displayList>
-    <graph id="n0_8sec" name="n0" xy="0,0" size="28,28" touchable="false" type="rect" lineSize="0" fillColor="#ff666666">
-      <gearColor controller="state" pages="0,1,2,3" values="#666666|#009900|#ffcc33|#660000"/>
+    <graph id="n0_8sec" name="n0" xy="0,0" size="28,28" touchable="false" type="rect" lineSize="0" fillColor="#ffff4444">
+      <gearColor controller="state" pages="0,1,2,3" values="#666666|#009900|#ffcc33|#ff4444"/>
       <relation target="" sidePair="center-center,middle-middle"/>
     </graph>
   </displayList>
