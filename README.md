@@ -5,7 +5,7 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
-![Sample-ratio mismatch caught over the exposed population](docs/media/gif1_srm_take2.gif)
+![Sample-ratio mismatch caught over the exposed population](docs/media/srm-guardrail.gif)
 
 Suppressed exposure logging leaves the assignment split perfectly even while it destroys the data. The
 alarm fires because SRM is measured over the exposed population; an assignment-based check would have
@@ -69,7 +69,7 @@ still-frame tell for every beat.
 
 ### The kill switch
 
-![An experiment set to stopped returns every user to control](docs/media/gif2_kill_switch_take1.gif)
+![An experiment set to stopped returns every user to control](docs/media/kill-switch.gif)
 
 Setting an experiment to `stopped` returns every user to control on the next config refresh and discards
 cached assignments. The chip states which source is in force, so the guardrail is visible rather than
@@ -77,21 +77,21 @@ merely present.
 
 ### The fallback ladder
 
-![A malformed payload is rejected whole and last known good stays in force](docs/media/gif3_lkg_ladder_take1.gif)
+![A malformed payload is rejected whole and last known good stays in force](docs/media/lkg-ladder.gif)
 
 A malformed payload is rejected whole. The last known good configuration stays in force, one line names the
 rule that failed, and the screen does not change. Nothing here is meant to be dramatic — that is the point.
 
 ### Hot update, both directions
 
-![A Lua patch changes a running variant, and deleting it puts it back](docs/media/gif4_hot_update_take1.gif)
+![A Lua patch changes a running variant, and deleting it puts it back](docs/media/hot-update.gif)
 
 A Lua patch changes a running variant with no rebuild, and deleting the file puts it back. Both directions
 in one take: for every state a patch can put the system into, there is a defined way out.
 
 ### A patch that is refused
 
-![A patch asking for a layout nobody drew is rejected whole](docs/media/gif5_rejected_spec_take1.gif)
+![A patch asking for a layout nobody drew is rejected whole](docs/media/rejected-spec.gif)
 
 A patch asking for a layout nobody drew is rejected whole rather than partially applied: the layout layer
 falls back to control and the strip says why. Notice what did not change — the price presentation, the badge
