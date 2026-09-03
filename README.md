@@ -5,8 +5,9 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
-Unity 6 · C# · xLua · FairyGUI · **396 tests**: 238 engine-free core tests that run under `dotnet test` in
-CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 42 PlayMode tests.
+Unity 6 · C# · xLua · FairyGUI · **396 distinct tests**: 238 engine-free core tests that run under
+`dotnet test` in CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 42 PlayMode tests.
+The suites overlap, so those are not added together — see below.
 
 ---
 
@@ -73,9 +74,11 @@ speed: the Core assembly sets `noEngineReferences`, and CI greps for a Unity `us
 
 Unity's own suites run locally with the Editor closed — commands in `docs/STATUS.md`.
 
-Those 238 core tests are a strict subset of the 354 EditMode ones: the same source compiled twice. Summing
-the suites would count them twice, so the honest total is 396 distinct tests. `docs/STATUS.md` shows the
-set arithmetic.
+Those 238 core tests are a strict subset of the 354 EditMode ones: the same source compiled twice, once as
+a plain .NET project and once by Unity. So the suites overlap, and adding their totals would count the core
+tests twice. **396 distinct tests** — 238 core, 116 EditMode-only, 42 PlayMode — verified by comparing test
+names across the three result files rather than by subtracting counts. Every core name appears in the
+EditMode results and no name appears in both EditMode and PlayMode. The arithmetic is in `docs/STATUS.md`.
 
 ### What the tests did not cover, and how that was found
 
@@ -117,8 +120,8 @@ which.
 
 ## Honest limits
 
-Two of these are worth stating plainly, because a limit with its reasoning reads as judgement and the same
-limit found by a reviewer reads as a hole.
+Four, stated plainly, because a limit with its reasoning reads as judgement and the same limit found by a
+reviewer reads as a hole.
 
 **The Lua sandbox is a capability restriction, not a resource limit.** A patch cannot reach the filesystem,
 process control, `require`, runtime compilation, the `debug` library, or xLua's `CS` bridge — that last
@@ -133,8 +136,22 @@ bytecode. The Lua bytecode verifier is not hardened and crafted bytecode can sub
 channel that accepts source alone is a materially smaller attack surface than one that accepts both. It
 costs nothing here because patches are authored as source anyway.
 
-More, with reasoning, in `docs/STATUS.md` — including what the sample-ratio thresholds are and why, and
-what is deliberately not built.
+**The two file-backed stores have no dedicated tests.** `FileAssignmentStore` and `FileConfigCache` are
+exercised indirectly — pins survive a restart, last-known-good survives an outage — but nothing tests them
+directly against a corrupt file, a partial write, a read-only directory or a disk that fills mid-write. The
+in-memory implementations behind the same interfaces are tested thoroughly, so the *policy* is covered and
+the *persistence* is not. On a real client that gap is where a crash-on-launch lives; here the blast radius
+is a demo losing its pins.
+
+**One test reads the authoring source rather than the published package.** `AuthoredContrastTests` measures
+the log severity colours out of `FGUIProject/**/*.xml`, deliberately: it is a rule about what may be
+authored, it should fail when somebody picks a colour rather than at the next publish, and it must not go
+quiet because a republish is pending. The cost is that it cannot see drift between the authoring source and
+the published `.bytes`. Everything else that touches the package binds to the published bytes, and boot
+validation checks every name against what actually loaded.
+
+More, with reasoning, in `docs/STATUS.md` — including what the sample-ratio thresholds are and why, the
+four FairyGUI binding hazards this package hit, and what is deliberately not built.
 
 ## Scope
 

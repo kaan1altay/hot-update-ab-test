@@ -679,6 +679,12 @@ Deferred with reasons:
   implementations that are thoroughly covered, and the demo wires the in-memory ones. The behaviour worth
   testing in them — surviving a restart — needs a test that restarts, which the PlayMode suite cannot do.
   Genuinely untested; said plainly rather than counted as covered.
+- **`AuthoredContrastTests` reads the authoring source, not the published package.** Deliberate: it is a
+  rule about what may be authored, so it should fail when somebody picks a colour rather than at the next
+  publish, and it must not go quiet because a republish is pending. The cost is that it cannot see drift
+  between `FGUIProject` and the published `.bytes`. Everything else that touches the package binds to the
+  published bytes and boot validation checks every name against what actually loaded, so the drift window
+  is one file's colours rather than the package.
 - **`ExposureLedger.ForgetSession` is O(live dedup keys).** Fine at demo scale and called once per simulated
   user, but it scans rather than indexing by session. Noted rather than built.
 - **The soak's `SweepEvery` is 500.** Cheap invariants run after every operation; the O(population) sweep
