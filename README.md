@@ -11,8 +11,8 @@ Suppressed exposure logging leaves the assignment split perfectly even while it 
 alarm fires because SRM is measured over the exposed population; an assignment-based check would have
 stayed green through exactly the failure it exists to catch.
 
-Unity 6 · C# · xLua · FairyGUI · **396 distinct tests**: 238 engine-free core tests that run under
-`dotnet test` in CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 42 PlayMode tests.
+Unity 6 · C# · xLua · FairyGUI · **398 distinct tests**: 238 engine-free core tests that run under
+`dotnet test` in CI *and* again inside Unity, plus 118 Unity-only EditMode tests and 42 PlayMode tests.
 The suites overlap, so those are not added together — see below.
 
 ---
@@ -117,9 +117,9 @@ speed: the Core assembly sets `noEngineReferences`, and CI greps for a Unity `us
 
 Unity's own suites run locally with the Editor closed — commands in `docs/STATUS.md`.
 
-Those 238 core tests are a strict subset of the 354 EditMode ones: the same source compiled twice, once as
+Those 238 core tests are a strict subset of the 356 EditMode ones: the same source compiled twice, once as
 a plain .NET project and once by Unity. So the suites overlap, and adding their totals would count the core
-tests twice. **396 distinct tests** — 238 core, 116 EditMode-only, 42 PlayMode.
+tests twice. **398 distinct tests** — 238 core, 118 EditMode-only, 42 PlayMode.
 
 Verified by comparing **fully-qualified** test names — fixture plus method — across the three result files,
 not by subtracting totals. Every one of the 238 core names appears in the EditMode results, and no name

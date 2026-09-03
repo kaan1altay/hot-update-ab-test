@@ -9,7 +9,7 @@ using UnityEngine;
 namespace HotUpdateABTest.Tests.Unity
 {
     /// <summary>
-    /// Asserts that every severity colour the log panel can select is readable on the panel it sits on.
+    /// Asserts that every colour a status surface can select is readable on the ground it sits on.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -29,12 +29,29 @@ namespace HotUpdateABTest.Tests.Unity
     /// what may be authored, it should fail the moment someone picks a colour rather than at the next
     /// publish, and it must not go quiet just because the package has not been republished yet.
     /// </para>
+    /// <para>
+    /// It covers <c>SrmLight</c> as well as <c>LogRow</c>, and that was added late. The fixture passed
+    /// through a ratio light whose alarm state was <c>#660000</c> at 1.54 : 1 - worse than the log colour
+    /// it had been written for - because it only ever read one component. A fixture that is green because
+    /// it never looked is the failure this repository documents most often; adding a component here is
+    /// cheap, and every authored colour that means something belongs in it.
+    /// </para>
     /// </remarks>
     [TestFixture]
     public sealed class AuthoredContrastTests
     {
         /// <summary>WCAG AA for body text, and the number this repository argues from.</summary>
         private const double ContrastFloor = 4.5;
+
+        /// <summary>
+        /// The floor for a solid indicator rather than text: WCAG AA for non-text contrast.
+        /// </summary>
+        /// <remarks>
+        /// Lower than the text floor because a 28x28 block of colour is far easier to see than a glyph
+        /// stroke, and because <c>unknown</c> is deliberately dim - a state meaning "no measurement yet"
+        /// should not shout. It is still a floor: the alarm state sat at 1.54 : 1 and was invisible.
+        /// </remarks>
+        private const double LightFloor = 3.0;
 
         private static string AuthoringRoot =>
             Path.GetFullPath(Path.Combine(Application.dataPath, "..", "FGUIProject", "assets", "AbTestDemo"));
@@ -71,6 +88,59 @@ namespace HotUpdateABTest.Tests.Unity
                 "the unreadable original is back");
             Assert.That(Contrast("#b20000", ConsoleBackground()), Is.LessThan(ContrastFloor),
                 "the original really was below the floor, which is why this fixture exists");
+        }
+
+        [Test]
+        public void EveryRatioLightStateIsReadableOnTheConsoleBackground()
+        {
+            // Added after the fixture went green through an SrmLight whose alarm page was #660000 on
+            // #00001e - 1.54 : 1, worse than the log colour this fixture was written for. It passed
+            // because it only ever read LogRow, which is the failure this repository keeps documenting: a
+            // suite that is green because it never looked.
+            string background = ConsoleBackground();
+            var states = RatioLightColours();
+
+            Assert.That(states.Count, Is.EqualTo(4),
+                "SrmLight should carry one colour per state; found " + states.Count);
+
+            string[] pages = { "unknown", "healthy", "warn", "alarm" };
+            for (int i = 0; i < states.Count; i++)
+            {
+                double ratio = Contrast(states[i], background);
+
+                Assert.That(ratio, Is.GreaterThanOrEqualTo(LightFloor),
+                    "the '" + pages[i] + "' state is " + states[i] + " on " + background +
+                    ", which measures " + ratio.ToString("F2") + " : 1 against a floor of " +
+                    LightFloor + " : 1 for a solid indicator");
+            }
+        }
+
+        [Test]
+        public void TheAlarmStateIsTheOneThatWasFixed()
+        {
+            var states = RatioLightColours();
+
+            Assert.That(states[3].ToLowerInvariant(), Is.Not.EqualTo("#660000"),
+                "the unreadable original is back");
+            Assert.That(Contrast("#660000", ConsoleBackground()), Is.LessThan(LightFloor),
+                "the original really was below the floor, which is why this test exists");
+        }
+
+        /// <summary>SrmLight's four state colours, in page order.</summary>
+        private static List<string> RatioLightColours()
+        {
+            string xml = ReadAuthored("SrmLight.xml");
+
+            var match = Regex.Match(xml, "<gearColor controller=\"state\" pages=\"0,1,2,3\" values=\"([^\"]+)\"");
+            Assert.That(match.Success, Is.True, "no four-page gearColor on SrmLight");
+
+            var colours = new List<string>();
+            foreach (string value in match.Groups[1].Value.Split('|'))
+            {
+                colours.Add(value.Split(',')[0].Trim());
+            }
+
+            return colours;
         }
 
         /// <summary>The three title colours from LogRow's gearColor, in page order.</summary>

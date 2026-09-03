@@ -338,12 +338,12 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 354 | 354 passed, 0 skipped |
+| Unity EditMode batchmode | 356 | 356 passed, 0 skipped |
 | Unity PlayMode batchmode | 42 | 42 passed |
 
 ### How the suites overlap
 
-**396 distinct tests.** Verified by set arithmetic on **fully-qualified** test names - fixture plus
+**398 distinct tests.** Verified by set arithmetic on **fully-qualified** test names - fixture plus
 method - taken from the three result files, not by subtracting counts. The fixture name is load-bearing in
 that comparison: four fixtures each declare a `NullArgumentsAreRejected`, so comparing bare method names
 collapses 238 core tests to 235 distinct strings and can match two unrelated tests to each other. An
@@ -352,12 +352,12 @@ earlier version of this check did exactly that and looked like it passed.
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **116** | 238 + 116 = the 354 EditMode total |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **118** | 238 + 118 = the 356 EditMode total |
 | PlayMode tests | **42** | no overlap with EditMode |
-| **Distinct** | **396** | |
+| **Distinct** | **398** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 634, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 636, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.
