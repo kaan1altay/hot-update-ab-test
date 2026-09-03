@@ -119,6 +119,7 @@ InitTestScene*.unity*
 
 # Unity test runner output (see docs/STATUS.md for the batchmode command)
 /[Tt]est[Rr]esults/
+**/[Tt]est[Rr]esults/
 
 # The engine-free core is compiled a second time as a plain .NET project so it
 # can run under `dotnet test` in CI without a Unity licence. Its build output is

@@ -76,9 +76,13 @@ Unity's own suites run locally with the Editor closed — commands in `docs/STAT
 
 Those 238 core tests are a strict subset of the 354 EditMode ones: the same source compiled twice, once as
 a plain .NET project and once by Unity. So the suites overlap, and adding their totals would count the core
-tests twice. **396 distinct tests** — 238 core, 116 EditMode-only, 42 PlayMode — verified by comparing test
-names across the three result files rather than by subtracting counts. Every core name appears in the
-EditMode results and no name appears in both EditMode and PlayMode. The arithmetic is in `docs/STATUS.md`.
+tests twice. **396 distinct tests** — 238 core, 116 EditMode-only, 42 PlayMode.
+
+Verified by comparing **fully-qualified** test names — fixture plus method — across the three result files,
+not by subtracting totals. Every one of the 238 core names appears in the EditMode results, and no name
+appears in both EditMode and PlayMode. The fixture name has to be part of the comparison: four different
+fixtures each declare a test called `NullArgumentsAreRejected`, so a check on bare method names both
+undercounts and can match two unrelated tests to each other. The arithmetic is in `docs/STATUS.md`.
 
 ### What the tests did not cover, and how that was found
 

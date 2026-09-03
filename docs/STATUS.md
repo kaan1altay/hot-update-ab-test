@@ -343,8 +343,11 @@ Last run 2026-09-02, all three suites green.
 
 ### How the suites overlap
 
-**396 distinct tests.** Verified by set arithmetic on test names from the result files, not by
-subtracting counts:
+**396 distinct tests.** Verified by set arithmetic on **fully-qualified** test names - fixture plus
+method - taken from the three result files, not by subtracting counts. The fixture name is load-bearing in
+that comparison: four fixtures each declare a `NullArgumentsAreRejected`, so comparing bare method names
+collapses 238 core tests to 235 distinct strings and can match two unrelated tests to each other. An
+earlier version of this check did exactly that and looked like it passed.
 
 | | Count | |
 | --- | --- | --- |
