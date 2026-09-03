@@ -257,9 +257,14 @@ and climbs back on its own. But the history only ever recorded the outage, so a 
 found a complaint with no resolution and no way to tell whether it still applied. The climb back now
 writes a line of its own. Log-once during the outage was confirmed by hand and is pinned by a test.
 
-**12 — the patch folder path is on its own row.** The label and a full `AppData` path together overran the
-row and the path was cut mid-directory, which is the one line in the panel a reader has to be able to
-copy.
+**12 — the patch folder path gets a whole row, and one kind of separator.** The label and the path used
+to share a row, which pushed the path to start two thirds of the way across and wrap awkwardly. Measured
+at the log's 24px: a typical path is about 900px in a 963px row and fits on one line, and a longer user
+name exceeds it — which is survivable rather than a defect, because `LogRow`'s title is `autoSize=height`
+with no `singleLine` and the component's height follows it, so the path wraps onto a second line inside
+the same row instead of losing its tail. `ALogRowWrapsRatherThanClips` asserts that property rather than
+assuming it. The path is also normalised to one separator: `persistentDataPath` returns forward slashes
+and `Path.Combine` appends a backslash, so the line read as mixed and looked like a typo.
 
 **13 — the server starting with the demo is deliberate.** The demo is a LiveOps console, and a console
 whose first frame shows a dead server reads as broken rather than as ready. `docs/DEMO_SCRIPT.md` opens
@@ -334,22 +339,22 @@ Last run 2026-09-02, all three suites green.
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
 | Unity EditMode batchmode | 354 | 354 passed, 0 skipped |
-| Unity PlayMode batchmode | 39 | 39 passed |
+| Unity PlayMode batchmode | 42 | 42 passed |
 
 ### How the suites overlap
 
-**393 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**396 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
 | Unity-only EditMode tests (Lua VM, sockets, the package) | **116** | 238 + 116 = the 354 EditMode total |
-| PlayMode tests | **39** | no overlap with EditMode |
-| **Distinct** | **393** | |
+| PlayMode tests | **42** | no overlap with EditMode |
+| **Distinct** | **396** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 631, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 634, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.

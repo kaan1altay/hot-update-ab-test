@@ -123,6 +123,18 @@ namespace HotUpdateABTest.Lua
             return files;
         }
 
+        /// <summary>A path written with one kind of separator, for a line somebody has to copy.</summary>
+        /// <remarks>
+        /// <see cref="Application.persistentDataPath"/> returns forward slashes and
+        /// <see cref="Path.Combine"/> appends the platform one, so the folder came out as
+        /// mixed separators inside one path, which reads as a typo and makes a reader doubt they
+        /// copied it correctly. Presentation only; nothing resolves paths through it.
+        /// </remarks>
+        public static string ForDisplay(string path) =>
+            string.IsNullOrEmpty(path)
+                ? path
+                : path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
         /// <summary>Creates the patch folder if it is not there, so the demo can point a user at it.</summary>
         public void EnsurePatchRoot()
         {

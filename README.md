@@ -5,8 +5,8 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
-Unity 6 · C# · xLua · FairyGUI · **393 tests**: 238 engine-free core tests that run under `dotnet test` in
-CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 39 PlayMode tests.
+Unity 6 · C# · xLua · FairyGUI · **396 tests**: 238 engine-free core tests that run under `dotnet test` in
+CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 42 PlayMode tests.
 
 ---
 
@@ -74,7 +74,7 @@ speed: the Core assembly sets `noEngineReferences`, and CI greps for a Unity `us
 Unity's own suites run locally with the Editor closed — commands in `docs/STATUS.md`.
 
 Those 238 core tests are a strict subset of the 354 EditMode ones: the same source compiled twice. Summing
-the suites would count them twice, so the honest total is 393 distinct tests. `docs/STATUS.md` shows the
+the suites would count them twice, so the honest total is 396 distinct tests. `docs/STATUS.md` shows the
 set arithmetic.
 
 ### What the tests did not cover, and how that was found

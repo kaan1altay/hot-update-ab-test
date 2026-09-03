@@ -234,5 +234,67 @@ namespace HotUpdateABTest.Tests.PlayMode
                 "if the phrasing now fits, put it back: it measures " + withPhrase + "px");
         }
 
+        // --- Finding 12: the one line in the panel a reader has to be able to copy ---------------------
+
+        /// <summary>The room a log row gives its message: LogRow's title is 963 wide at x 117.</summary>
+        private const int LogRowTextWidth = 963;
+
+        [Test]
+        public void ThePatchFolderPathGetsAWholeRowAndFitsOnOneLine()
+        {
+            // Finding 12, and the answer depends on whose machine it is, so both are measured. The label
+            // and the path used to share a row, which pushed the path to start two thirds of the way
+            // across and wrap awkwardly. On its own row it starts at the left and, for a typical user
+            // name, fits on one line.
+            string typical = @"C:\Users\kaana\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches";
+            string longName = @"C:\Users\a-longish-username\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches";
+
+            Assert.That(Measure(typical, 24, bold: false), Is.LessThan(LogRowTextWidth - 10),
+                "a typical path must fit on one line of its own row");
+
+            // A longer user name does not fit, and that is survivable rather than a defect: LogRow's title
+            // is autoSize=height with no singleLine and the component's height follows it, so the path
+            // wraps onto a second line inside the same row. Complete and copyable, never truncated - which
+            // is the property that matters, because a path clipped at the end still looks whole.
+            Assert.That(Measure(longName, 24, bold: false), Is.GreaterThan(LogRowTextWidth),
+                "if this now fits, the wrapping note above is stale");
+        }
+
+        [Test]
+        public void ALogRowWrapsRatherThanClips()
+        {
+            // The property the note above depends on, asserted rather than assumed: a message wider than
+            // the row must make the row taller, not lose its tail.
+            var row = UIPackage.CreateObject(PackageName, "LogRow") as GComponent;
+            Assert.That(row, Is.Not.Null, "no LogRow in the package");
+
+            var title = row.GetChild("title") as GTextField;
+            Assert.That(title, Is.Not.Null);
+
+            title.text = "short";
+            float shortHeight = row.height;
+
+            title.text = new string('x', 400);
+            float longHeight = row.height;
+
+            Assert.That(longHeight, Is.GreaterThan(shortHeight),
+                "the row stayed " + longHeight + " tall for 400 characters, so the tail is being lost");
+
+            row.Dispose();
+        }
+
+        [Test]
+        public void ThePatchFolderPathIsWrittenWithOneKindOfSeparator()
+        {
+            // Application.persistentDataPath returns forward slashes and Path.Combine appends a
+            // backslash, so the line read ".../hot-update-ab-test\abtest-patches" - mixed, which reads as
+            // a typo and is the sort of thing that makes someone doubt they copied it correctly.
+            string combined = System.IO.Path.Combine("C:/Users/x/AppData/LocalLow/Co/app", "abtest-patches");
+            string tidied = HotUpdateABTest.Lua.LuaPatchLoader.ForDisplay(combined);
+
+            Assert.That(tidied, Does.Not.Contain("/"), "one separator, and on Windows it is the backslash");
+            Assert.That(tidied, Does.EndWith("abtest-patches"));
+        }
+
     }
 }

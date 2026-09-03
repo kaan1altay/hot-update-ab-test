@@ -65,7 +65,7 @@ namespace HotUpdateABTest.Demo
             // the path was cut off mid-directory, which is the one line in the whole panel a reader
             // has to be able to copy.
             _log.Log(AbLogLevel.Info, "drop Lua patches into this folder, then press Reload Lua patches:");
-            _log.Log(AbLogLevel.Info, _lua.PatchRoot);
+            _log.Log(AbLogLevel.Info, LuaPatchLoader.ForDisplay(_lua.PatchRoot));
         }
 
         private void Update()
