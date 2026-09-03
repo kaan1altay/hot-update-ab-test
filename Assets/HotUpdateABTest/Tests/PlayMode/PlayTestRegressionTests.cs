@@ -822,6 +822,123 @@ namespace HotUpdateABTest.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator EveryReloadOfABrokenPatchRendersItsOwnErrorRow()
+        {
+            LogAssert.ignoreFailingMessages = true;
+
+            // Asserted on what LogRow displays, not on what the logger was called with. That gap is where
+            // this hid: the failure row was emitted at Error and selected the err page on the first press,
+            // and on every press after that the summary still said "1 failed" while no row was written -
+            // so the counter, the pointer and the rows disagreed about one event.
+            //
+            // titleLogHeader's text comes from the type controller's page, so the header word is a direct
+            // readout of the selected page and is checked here as well as the page name itself.
+            using (new BorrowedPatchFolder())
+            {
+            Directory.CreateDirectory(LivePatchRoot);
+            string file = Path.Combine(LivePatchRoot, "zz-broken.lua");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                var list = UiValidator.Deep(demo.ConsoleRoot, "listLog") as GList;
+                Assert.That(list, Is.Not.Null);
+
+                File.WriteAllText(file, "this is not lua at all (((( sdfsd");
+
+                for (int press = 1; press <= 3; press++)
+                {
+                    int before = ErrorRows(list);
+
+                    Press(demo.ConsoleRoot, "btnReloadPatches");
+                    for (int i = 0; i < 5; i++) yield return null;
+
+                    Assert.That(ErrorRows(list), Is.EqualTo(before + 1),
+                        "press " + press + " added no error row. " + Rows(list));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TheReloadSummaryNamesTheFileItFailedOn()
+        {
+            LogAssert.ignoreFailingMessages = true;
+
+            // "see the failures above" was only true while the rows above still existed. The summary now
+            // names its own failures, so the two cannot come apart however many times reload is pressed.
+            using (new BorrowedPatchFolder())
+            {
+            Directory.CreateDirectory(LivePatchRoot);
+            string file = Path.Combine(LivePatchRoot, "zz-broken.lua");
+
+            var host = new GameObject("AbTestDemo");
+            try
+            {
+                var demo = host.AddComponent<AbTestDemoBehaviour>();
+                yield return null;
+                yield return null;
+
+                File.WriteAllText(file, "this is not lua at all (((( sdfsd");
+                Press(demo.ConsoleRoot, "btnReloadPatches");
+                for (int i = 0; i < 5; i++) yield return null;
+
+                Assert.That(LogTail(demo.ConsoleRoot, 20), Does.Contain("failed: zz-broken.lua"),
+                    "the summary must name what failed");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                if (File.Exists(file)) File.Delete(file);
+            }
+            }
+        }
+
+        /// <summary>How many rendered rows are on the err page.</summary>
+        private static int ErrorRows(GList list)
+        {
+            int count = 0;
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                if (!(list.GetChildAt(i) is GComponent row)) continue;
+                var controller = row.GetController("type");
+                if (controller != null && controller.selectedPage == "err") count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>Every rendered row with its page, header word and text.</summary>
+        private static string Rows(GList list)
+        {
+            var sb = new System.Text.StringBuilder("rows:");
+            for (int i = 0; i < list.numChildren; i++)
+            {
+                var row = list.GetChildAt(i) as GComponent;
+                var controller = row == null ? null : row.GetController("type");
+                var header = row == null ? null : row.GetChild("titleLogHeader");
+                var title = row == null ? null : row.GetChild("title");
+
+                sb.AppendLine();
+                sb.Append("  [").Append(i).Append("] page=")
+                  .Append(controller == null ? "NONE" : controller.selectedPage)
+                  .Append(" header='").Append(header == null ? "" : header.text)
+                  .Append("' text='").Append(title == null ? "" : title.text).Append("'");
+            }
+
+            return sb.ToString();
+        }
+
         // --- Finding 2: is the badge written, or is it a placeholder? -------------------------------------
 
         [Test]

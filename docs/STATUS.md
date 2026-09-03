@@ -180,19 +180,10 @@ controller was dead. Raising the severity made it reachable rather than deleting
 
 ## Verification pass — the banner, the severities, and a row nobody could read
 
-**A patch failure was logged and could not be read.** The row was emitted, at the right severity, with the
-right text. The authored `LogRow` colours its title by gear, and page 2 — `err` — is `#b20000` with a black
-stroke on the console's `#00001e` background. Measured against that background: `log` `#ffffff` is
-20.61 : 1, `warn` `#ffff99` is 19.65 : 1, and `err` is **2.84 : 1**, against a readability floor of 4.5 : 1.
-
-The sequence is worth keeping. The parse failure used to log at `Warning` and was visible. Raising it to
-`Error` — the right call — moved it from a 19.65 : 1 colour to a 2.84 : 1 one, and it disappeared. A
-correct fix made visible a defect that had been latent since the package was authored: nothing had ever
-selected that page.
-
-It also disproves the obvious hypothesis, which was that the severity mapping could never select page 2.
-The pages are named `0,log,1,warn,2,err`, `LogPage` returns those names, selection is by name and not by
-index, and boot validation checks all three. The page was always reachable. It could not be seen.
+**A patch failure appeared to produce no row.** The account first given here blamed contrast, and
+that was wrong; the real cause and the correction are in *Three views of one event that
+disagreed* below. The contrast defect is real but latent, and is recorded in
+`docs/PACKAGE_SPEC.md` as what it is.
 
 **Three severities disagreed with each other.** A rejected spec logged at `Warning` while its text began
 `error:`, because `ValidationResult` labels every issue that way and the row level was decided separately.
@@ -275,6 +266,44 @@ whose first frame shows a dead server reads as broken rather than as ready. `doc
 with **Stop server** for that reason: the recovery is the shot worth having, and it needs something to
 recover from. `btnServerToggle` is a pair either way round.
 
+## Three views of one event that disagreed
+
+A file containing `this is not lua at all (((( sdfsd` produced a summary reading `1 failed - see the
+failures above` with nothing above it, at `Log:` severity. Three views of a single event — the counter,
+the pointer and the rows — each said something different, and none of them was checked against the others.
+
+**The first explanation offered was wrong, and it was wrong in an instructive way.** It said the row was
+emitted correctly and simply could not be read, on the strength of a measurement: the `err` page's
+`#b20000` on `#00001e` is 2.84 : 1. The numbers were right. The conclusion did not survive one observation
+that was already documented in `PACKAGE_SPEC.md` — `titleLogHeader` takes its text from the same
+controller page, so a row on `err` reads `Error` and a row on page 0 reads `Log:`. The row on screen said
+`Log:`. A colour cannot make a row wear the wrong label, and an invisible message is not the same defect
+as a visible message with the wrong label.
+
+**What it actually was.** The failure row is emitted, at `Error`, on the `err` page — on the *first*
+reload. The log-once key was held across reloads, so every press after the first wrote the summary and
+suppressed the failure. The play-test was looking at a second press.
+
+That makes the scope of the dedupe the defect. Reload is a button a person presses, and a press that
+reports nothing is indistinguishable from a press that did nothing. The dedupe is now per reload rather
+than per session: within one pass a file is reported once, and every pass reports its own outcome. The
+summary also names the files it failed on instead of pointing at rows, because `see the failures above`
+is only true while the rows above still exist.
+
+**The check that settles this class of question** is to assert on what the component displays, not on what
+the logger was called with. `EveryReloadOfABrokenPatchRendersItsOwnErrorRow` presses reload three times
+and asserts the rendered count of rows on the `err` page rises each time, and its failure message dumps
+every row with its page, header word and text. A test asserting the logger received `Error` would have
+passed throughout.
+
+**The process note, recorded because it is the third instance this pass.** A measured, confident
+explanation is still an unverified claim until something checks it against the observation it is
+explaining. The contrast numbers were correct and the conclusion drawn from them was wrong. Same family as
+the comment that out-ran the code — *a newly broken file is never swallowed by an earlier one's line*,
+which keying on the path could not deliver — and the green suite that asserted two UI paths shared names
+while nothing asserted they behaved alike. In all three the artefact was accurate about something other
+than the question being asked.
+
 ## Two batchmode traps worth an hour each
 
 **`LogAssert.ignoreFailingMessages` must be set per test body, not in `[SetUp]`.** The framework resets it
@@ -304,23 +333,23 @@ Last run 2026-09-02, all three suites green.
 | Suite | Tests | Result |
 | --- | --- | --- |
 | `dotnet test` (engine-free core) | 238 | 238 passed, ~15 s |
-| Unity EditMode batchmode | 353 | 353 passed, 0 skipped |
-| Unity PlayMode batchmode | 37 | 37 passed |
+| Unity EditMode batchmode | 354 | 354 passed, 0 skipped |
+| Unity PlayMode batchmode | 39 | 39 passed |
 
 ### How the suites overlap
 
-**390 distinct tests.** Verified by set arithmetic on test names from the result files, not by
+**393 distinct tests.** Verified by set arithmetic on test names from the result files, not by
 subtracting counts:
 
 | | Count | |
 | --- | --- | --- |
 | Core tests run by `dotnet test` **and** again inside Unity | **238** | every one of them; none are CI-only |
-| Unity-only EditMode tests (Lua VM, sockets, the package) | **115** | 238 + 115 = the 353 EditMode total |
-| PlayMode tests | **37** | no overlap with EditMode |
-| **Distinct** | **390** | |
+| Unity-only EditMode tests (Lua VM, sockets, the package) | **116** | 238 + 116 = the 354 EditMode total |
+| PlayMode tests | **39** | no overlap with EditMode |
+| **Distinct** | **393** | |
 
 The core suite is a strict subset of EditMode, because the same source files are compiled twice — once as a
-plain .NET project, once by Unity. **Adding the three suite totals gives 628, which counts the core tests
+plain .NET project, once by Unity. **Adding the three suite totals gives 631, which counts the core tests
 twice. Do not quote it.**
 
 The soak accounts for most of the core suite's fifteen seconds; everything else is about one.

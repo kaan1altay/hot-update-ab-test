@@ -208,28 +208,51 @@ namespace HotUpdateABTest.Tests.Unity
         }
 
         [Test]
-        public void TheSameFailureRepeatedIsStillOnlyReportedOnce()
+        public void EveryReloadReportsTheFailuresThatReloadFound()
         {
-            // The property the key exists for, which the fix must not lose: a permanently broken patch
-            // says so once rather than on every reload.
+            // Deliberately the opposite of what this asserted before, and the change is the fix. Keying
+            // the dedupe across reloads is what produced the defect the play-test caught: from the second
+            // press onward the summary read "1 failed" and pointed at a row that had not been written
+            // that time, so the counter, the pointer and the rows disagreed about a single event.
+            //
+            // Reload is a button a person presses. A press that reports nothing is indistinguishable from
+            // a press that did nothing, so one reload is the honest scope for the dedupe, not the session.
             _fixture.WritePatch("stuck.lua", "error('same every time')");
 
             _fixture.Host.Reload();
             _fixture.Host.Reload();
             _fixture.Host.Reload();
 
-            Assert.That(_fixture.Log.CountContaining("same every time"), Is.EqualTo(1),
-                "the log says:\n" + _fixture.Log.All);
+            Assert.That(_fixture.Log.CountContaining("same every time"), Is.EqualTo(3),
+                "each press must report its own outcome");
+        }
+
+        [Test]
+        public void TheSummaryNamesItsOwnFailuresRatherThanPointingAtRows()
+        {
+            // "see the failures above" is only true while the rows above still exist. Naming them in the
+            // summary line means the two cannot come apart.
+            _fixture.WritePatch("stuck.lua", "error('boom')");
+
+            var report = _fixture.Host.Reload();
+
+            Assert.That(report.FailedNames.Count, Is.EqualTo(1));
+            Assert.That(report.Describe(), Does.Contain("stuck.lua"),
+                "the summary reads: " + report.Describe());
         }
 
         [Test]
         public void ABrokenPatchIsReportedOncePerReloadRatherThanOnEveryCall()
         {
+            // Once per reload, which is what the name always said: five presses, five rows, and not one
+            // row per call site within a pass.
             _fixture.WritePatch("broken.lua", "this is not lua");
 
             for (int i = 0; i < 5; i++) _fixture.Host.Reload();
 
-            Assert.That(_fixture.Log.CountContaining("broken.lua"), Is.EqualTo(1), _fixture.Log.All);
+            // Counted on the failure row's own phrase: the summary line names the file too now, so
+            // counting the filename would count both rows and quietly assert something else.
+            Assert.That(_fixture.Log.CountContaining("was skipped"), Is.EqualTo(5), _fixture.Log.All);
         }
 
         // --- reload is idempotent, removal reverts ------------------------------------------------------------

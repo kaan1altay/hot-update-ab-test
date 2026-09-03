@@ -274,7 +274,7 @@ saves the time — each has a number that identifies it on sight.
 | **Percent gears against a stale size** | A gear with `positionsInPercent` stores each position as a fraction of the parent, computed at authoring size. Applying a page puts the child at *fraction x whatever the parent measures right now*, so resizing before selecting the page multiplies every offset. | A child sits at a plausible-looking multiple of where it belongs. `txtName`'s fraction of 1.208 against a 190-tall card put it at **y=229.5** — outside a card 190 tall. |
 | **`GProgressBar` reclaiming its title** | A child named literally `title` is adopted as the bar's title object and rewritten from `titleType` inside `HandleSizeChanged` — on any layout pass, not merely a `value` write. | A caption you set is replaced by a bare percentage, one frame later, for no reason visible where you set it. `49.9% / 50.0%` becomes `0%`. |
 | **`SingleColumn` keeping the previous x** | `GList.DoLayout` under `SingleColumn` assigns `child.y` and never assigns `child.x`. Every x a previous `FlowHorizontal` pass wrote survives the switch. | Alternating offsets, and the offset equals a grid column position. Cards sat at **0, 172, 0, 172** where 172 is `163 + 9`, the grid card width plus the grid gap. |
-| **A severity nothing could read** | `LogRow` colours its title by gear, and the `err` page was `#b20000` with a black stroke on the console's `#00001e`. The row was emitted, at the right level, with the right text. | Contrast, and it is checkable rather than a matter of taste: **4.5 : 1** is the floor. `log` `#ffffff` measures 20.61 : 1, `warn` `#ffff99` 19.65 : 1, and the old `err` **2.84 : 1**. It is now `#ff6b6b`, 7.43 : 1. |
+| **A severity that would have been unreadable** | `LogRow` colours its title by gear, and the `err` page was `#b20000` with a black stroke on the console's `#00001e`. Latent rather than observed: an `err` row *would* have been unreadable, and this is not why none appeared. | Contrast, checkable rather than a matter of taste: **4.5 : 1** is the floor. `log` `#ffffff` measures 20.61 : 1, `warn` `#ffff99` 19.65 : 1, the old `err` **2.84 : 1**. Now `#ff6b6b`, 7.43 : 1. |
 
 Two rules come out of it, and both are cheaper than remembering the three cases:
 
@@ -286,12 +286,17 @@ the bar never adopts it, and the list's x is now cleared on the switch because n
 Correct sequencing is a rule someone has to keep obeying; there is no order to get wrong once the
 mechanism is gone.
 
-**The fourth one arrived by way of a correct fix, which is the part worth remembering.** The patch-failure
-message used to log at `Warning` and was perfectly visible. Raising it to `Error` was right — a file that
-is not running is not a caution — and it moved the message from a 19.65 : 1 colour to a 2.84 : 1 one, so
-it disappeared. The defect had been in the package since it was authored and had never once been seen,
-because nothing had ever selected that page. A dead branch is not proof of correctness; it is only proof
-that nobody has been there yet, and the first thing to arrive finds out what is waiting.
+**The fourth one is latent, and was very nearly mis-sold as an explanation.** It was found while chasing a
+report that a patch failure produced no row at all, and the contrast numbers were offered as the cause:
+the row was there, the argument went, and simply could not be read. The numbers were right and the
+conclusion was wrong. `titleLogHeader` takes its text from the same controller page, so a row on the `err`
+page reads `Error` and a row on page 0 reads `Log:` — and the row on screen said `Log:`. A colour cannot
+make a row wear the wrong label. The real cause was a log-once key held across reloads, and it is recorded
+in `docs/STATUS.md` where it belongs.
+
+What survives is a genuine latent defect: an `err` row *would* have been unreadable whenever one appeared.
+Worth fixing, worth a floor that is a number rather than a matter of taste, and worth keeping separate
+from the thing it did not explain.
 
 That is also why the contrast floor is written down as a number. "Dark red on dark blue looks wrong" is an
 argument. "2.84 : 1 against a floor of 4.5 : 1" is a measurement, and a measurement can be a test.

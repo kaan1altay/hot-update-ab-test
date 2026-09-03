@@ -23,6 +23,14 @@ namespace HotUpdateABTest.Lua
         /// <summary>How many of the loaded files came from the patch root.</summary>
         public int PatchesLoaded { get; internal set; }
 
+        /// <summary>The files that failed to load, in the order they were tried.</summary>
+        /// <remarks>
+        /// Named in the summary line rather than pointed at. "1 failed - see the failures above" is only
+        /// true while the rows above still exist, and they did not survive a second press of Reload; a
+        /// summary that names its own failures cannot come apart from them.
+        /// </remarks>
+        public IReadOnlyList<string> FailedNames { get; internal set; } = new string[0];
+
         /// <summary>The patch files that loaded, in the order they loaded.</summary>
         /// <remarks>
         /// Named rather than merely counted because later registrations win, so the order is the answer
@@ -36,10 +44,11 @@ namespace HotUpdateABTest.Lua
         public string Describe() =>
             FilesLoaded + " file(s) loaded (" + PatchesLoaded + " patch), " + FilesFailed +
             " failed, " + BehaviorCount + " behaviors registered" +
+            (FailedNames.Count > 0 ? "; failed: " + string.Join(", ", FailedNames) : "") +
             (PatchNames.Count > 0
                 ? "; patches in load order, last wins: " + string.Join(", ", PatchNames)
                 : FilesFailed > 0
-                    ? "; no patch is running - see the failures above"
+                    ? "; no patch is running"
                     : "; no patch files in the folder");
 
         /// <inheritdoc />
@@ -115,6 +124,14 @@ namespace HotUpdateABTest.Lua
             if (!IsReady) return LastReload = report;
 
             var patchNames = new List<string>();
+            var failedNames = new List<string>();
+
+            // Deduped within this reload, not across reloads. Reload is a button a person presses, and a
+            // press that reports nothing is indistinguishable from a press that did nothing: the second
+            // press onwards used to print "1 failed - see the failures above" with no failure row above
+            // it, because the row had been logged on the first press and suppressed ever since. Once per
+            // reload is the honest scope for an explicitly requested action.
+            var reportedThisReload = new HashSet<string>(StringComparer.Ordinal);
 
             _reset.Call();
 
@@ -139,10 +156,16 @@ namespace HotUpdateABTest.Lua
                     // caution about something that might matter later, it is a patch that is not running.
                     // It was also the reason the log panel's error page was unreachable: nothing in the
                     // demo ever emitted one.
-                    LogOnce(AbLogLevel.Error, "patch.failed." + file.Path + "." + reason,
-                        (file.IsPatch ? "patch" : "baseline") + " file '" + file.Name +
-                        "' was skipped: " + reason +
-                        ". Everything registered before it is unaffected.");
+                    failedNames.Add(file.Name);
+
+                    if (reportedThisReload.Add(file.Path + "." + reason))
+                    {
+                        _log.Log(AbLogLevel.Error,
+                            (file.IsPatch ? "patch" : "baseline") + " file '" + file.Name +
+                            "' was skipped: " + reason +
+                            ". Everything registered before it is unaffected.");
+                    }
+
                     continue;
                 }
 
@@ -155,6 +178,7 @@ namespace HotUpdateABTest.Lua
             }
 
             report.PatchNames = patchNames;
+            report.FailedNames = failedNames;
             report.BehaviorCount = BehaviorCount();
 
             if (report.FilesFailed == 0) _loggedOnce.Clear();
