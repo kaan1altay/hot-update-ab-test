@@ -309,6 +309,35 @@ which keying on the path could not deliver — and the green suite that asserted
 while nothing asserted they behaved alike. In all three the artefact was accurate about something other
 than the question being asked.
 
+## Three checks that were green because they never looked
+
+Not three missing tests. Three tests that **existed and were passing** while the thing they were named
+after was broken, which is the more expensive failure, because a missing test at least looks missing.
+
+**The UI contract asserted that two paths shared names, never that they behaved alike.** The authored
+package and the programmatic fallback were checked child-name by child-name and agreed completely. The
+fallback has no gears, no `GProgressBar` and no groups, so it could not express any of the three rendering
+defects the first play-test found. The contract was true and irrelevant.
+
+**A log-dedupe key made a repeated action report nothing.**
+`TheSameFailureRepeatedIsStillOnlyReportedOnce` passed on exactly the behaviour that produced the defect:
+reload a broken patch and the first press wrote an error row, every press after it wrote only a summary
+saying `1 failed — see the failures above` with nothing above it. The test asserted the suppression was
+happening. Nobody had asked whether suppression was right for a button a person presses.
+
+**`AuthoredContrastTests` read one component and was named as though it read all of them.** It was written
+after a log severity colour turned out to be unreadable at 2.84 : 1, to make that class of defect
+impossible. It read `LogRow.xml` and `ConsoleMain.xml`. It did not read `SrmLight.xml`, where the alarm
+state sat at **`#660000` on `#00001e` — 1.54 : 1**: less readable than the colour that had prompted the
+fixture in the first place, on the one indicator the entire sample-ratio story depends on. The suite was
+green because it never looked.
+
+The common shape is worth more than any of the three. Each check was accurate about something — the names
+did match, the suppression did happen, the log colours were readable — and each was silent about the
+question actually being asked. **Ask what a green check would still permit.** The contract permitted two
+paths that behaved differently; the dedupe test permitted a button that reported nothing; the contrast
+fixture permitted every colour in every component it did not open.
+
 ## Two batchmode traps worth an hour each
 
 **`LogAssert.ignoreFailingMessages` must be set per test body, not in `[SetUp]`.** The framework resets it
@@ -682,6 +711,14 @@ Deferred with reasons:
   implementations that are thoroughly covered, and the demo wires the in-memory ones. The behaviour worth
   testing in them — surviving a restart — needs a test that restarts, which the PlayMode suite cannot do.
   Genuinely untested; said plainly rather than counted as covered.
+- **The ratio light's healthy and alarm states are distinguished by hue alone.** Green `#009900` and red
+  `#ff4444` differ by 1.11 : 1 in luminance, so a red-green colour-blind reader sees close to the same
+  grey. Not fixed, because the light is never the only signal: the share bar carries the same verdict and
+  the observed-against-expected percentages state it in text, with a dash rather than a colour when there
+  is no measurement. The numeric share is the redundant encoding. The change to make, if this went in
+  front of players rather than operators, is a shape or glyph difference rather than a different pair of
+  colours - colour alone is a channel some readers do not have, and adding a second is cheap. Fixing it
+  now would mean re-authoring and re-recording for a case the redundancy already covers.
 - **`AuthoredContrastTests` reads the authoring source, not the published package.** Deliberate: it is a
   rule about what may be authored, so it should fail when somebody picks a colour rather than at the next
   publish, and it must not go quiet because a republish is pending. The cost is that it cannot see drift

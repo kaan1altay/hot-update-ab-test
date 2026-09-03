@@ -185,7 +185,7 @@ suite is which.
 
 ## Honest limits
 
-Four, stated plainly, because a limit with its reasoning reads as judgement and the same limit found by a
+Five, stated plainly, because a limit with its reasoning reads as judgement and the same limit found by a
 reviewer reads as a hole.
 
 **The Lua sandbox is a capability restriction, not a resource limit.** A patch cannot reach the filesystem,
@@ -214,6 +214,22 @@ authored, it should fail when somebody picks a colour rather than at the next pu
 quiet because a republish is pending. The cost is that it cannot see drift between the authoring source and
 the published `.bytes`. Everything else that touches the package binds to the published bytes, and boot
 validation checks every name against what actually loaded.
+
+**The ratio light's healthy and alarm states are distinguished by hue alone.** Green `#009900` and red
+`#ff4444` differ by 1.11 : 1 in luminance, so to a red-green colour-blind viewer they are close to the same
+grey. Both clear the contrast floor against the background — each is legible *as* a light — but they are
+not reliably legible *against each other*.
+
+It is left as it is, and the reason is that the light is never the only signal. The share bar beside it
+carries the same verdict, and the observed-against-expected percentages state it in text: `49.9% / 50.0%`
+reads the same to everyone, and an unmeasured cell reads a dash rather than a colour. The numeric share is
+the redundant encoding, so nothing here depends on telling two hues apart.
+
+The change to make, if this ever went in front of players rather than operators, is a shape or glyph
+difference rather than a different pair of colours — a filled circle against a hollow one, or a tick
+against a cross. Colour alone is a channel some readers do not have; adding a second channel is cheap and
+does not cost the first. Named here because a portfolio that states this and explains the mitigation is
+worth more than one where the question never came up.
 
 More, with reasoning, in `docs/STATUS.md` — including what the sample-ratio thresholds are and why, the
 four FairyGUI binding hazards this package hit, and what is deliberately not built.
