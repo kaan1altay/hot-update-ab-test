@@ -673,8 +673,8 @@ buckets so any population is a four-bucket sum at read time. A test asserts the 
 All six slices are complete. What follows is deliberately absent, with reasons — nothing here is an
 oversight, and each one is a decision somebody could reasonably have made differently.
 
-**Not yet recorded.** `docs/DEMO_SCRIPT.md` is the shooting order with a still-frame tell for every beat;
-the GIFs themselves are not in the repository.
+**Recorded.** Five takes are in `docs/media/` and wired into the README, each captioned with the argument
+it makes rather than with what is on screen. `docs/DEMO_SCRIPT.md` remains the shooting order.
 
 Deferred with reasons:
 

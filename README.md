@@ -5,6 +5,12 @@ variant *behaviour* lives in hot-updatable Lua. The subject is the experiment in
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
 delivery mechanism, not the headline.
 
+![Sample-ratio mismatch caught over the exposed population](docs/media/gif1_srm_take2.gif)
+
+Suppressed exposure logging leaves the assignment split perfectly even while it destroys the data. The
+alarm fires because SRM is measured over the exposed population; an assignment-based check would have
+stayed green through exactly the failure it exists to catch.
+
 Unity 6 · C# · xLua · FairyGUI · **396 distinct tests**: 238 engine-free core tests that run under
 `dotnet test` in CI *and* again inside Unity, plus 116 Unity-only EditMode tests and 42 PlayMode tests.
 The suites overlap, so those are not added together — see below.
@@ -56,10 +62,47 @@ alarms.
   deliberately: the resolver picks variants from the config, so a patch cannot enrol anyone in an
   experiment nobody configured.
 
-## Try it
+## See it
 
-Open `Assets/Scenes/AbTestDemo.unity` and press play. `docs/DEMO_SCRIPT.md` is a recording order with, for
-each beat, what you should be able to read in a single still frame.
+Five takes from the demo, each making one argument. `docs/DEMO_SCRIPT.md` is the shooting order, with the
+still-frame tell for every beat.
+
+### The kill switch
+
+![An experiment set to stopped returns every user to control](docs/media/gif2_kill_switch_take1.gif)
+
+Setting an experiment to `stopped` returns every user to control on the next config refresh and discards
+cached assignments. The chip states which source is in force, so the guardrail is visible rather than
+merely present.
+
+### The fallback ladder
+
+![A malformed payload is rejected whole and last known good stays in force](docs/media/gif3_lkg_ladder_take1.gif)
+
+A malformed payload is rejected whole. The last known good configuration stays in force, one line names the
+rule that failed, and the screen does not change. Nothing here is meant to be dramatic — that is the point.
+
+### Hot update, both directions
+
+![A Lua patch changes a running variant, and deleting it puts it back](docs/media/gif4_hot_update_take1.gif)
+
+A Lua patch changes a running variant with no rebuild, and deleting the file puts it back. Both directions
+in one take: for every state a patch can put the system into, there is a defined way out.
+
+### A patch that is refused
+
+![A patch asking for a layout nobody drew is rejected whole](docs/media/gif5_rejected_spec_take1.gif)
+
+A patch asking for a layout nobody drew is rejected whole rather than partially applied: the layout layer
+falls back to control and the strip says why. Notice what did not change — the price presentation, the badge
+and the CTA all keep their treatment, because they belong to a different layer that this patch never
+touched. Closed vocabulary, whole-table rejection, and layer independence in six seconds.
+
+## Run it
+
+Open `Assets/Scenes/AbTestDemo.unity` and press play. Every control above is a button in the LiveOps panel,
+and `examples/lua-patches/` holds five patches to drop into the running demo — including the two that are
+refused on purpose, so the rejection paths can be reached by hand rather than taken on trust.
 
 ## Tests
 
@@ -116,9 +159,27 @@ sequenced so `GProgressBar` could not clobber them, and then the child was renam
 `txtShare` so the bar never adopts it in the first place. Correct sequencing is a rule someone has to keep
 obeying. Removing the mechanism means there is no longer an order to get wrong.
 
+Two more of the same shape turned up in the following week, and they are worth naming because neither was
+a missing test — both were an artefact that was accurate about something other than the question being
+asked.
+
+**A comment claimed something no test checked.** A log-once key carried the note *"a newly broken file is
+never swallowed by an earlier one's line"*. The key was the file path, which cannot deliver that: edit one
+file until it works and every failure after the first is suppressed. The comment had been true of an
+intention and never of the code, and nothing was checking the difference.
+
+**A dedupe key made a repeated action report nothing.** Reload a broken patch and the first press wrote an
+error row; every press after it wrote only the summary, which said `1 failed — see the failures above` and
+pointed at a row it had just declined to write. Three views of one event — a counter, a pointer and the
+rows — disagreed, and each was individually defensible. The first explanation offered for it was a contrast
+measurement, correct to two decimal places and answering a question nobody had asked; the header word on
+the row said `Log:`, which no colour can cause. The test that would have caught it asserts what the
+component *displays*, not what the logger was *called with*.
+
 The general lesson, stated because it generalises past this repository: **a stand-in simpler than the thing
-it stands in for cannot test the thing it stands in for.** It is worth knowing which half of your suite is
-which.
+it stands in for cannot test the thing it stands in for**, and **a measurement is not a verification until
+something checks it against the observation it claims to explain.** It is worth knowing which half of your
+suite is which.
 
 ---
 
