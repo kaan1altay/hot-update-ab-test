@@ -1,5 +1,7 @@
 # hot-update-ab-test
 
+![core tests](https://github.com/kaan1altay/hot-update-ab-test/actions/workflows/core-tests.yml/badge.svg)
+
 **A LiveOps A/B testing framework for Unity.** Experiment configuration arrives from a server at runtime;
 variant *behavior* lives in hot-updatable Lua. The subject is the experiment infrastructure — deterministic
 bucketing, layered mutual exclusion, exposure telemetry, kill switches and guardrails. Hot update is the
