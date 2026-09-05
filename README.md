@@ -257,5 +257,4 @@ Lua runs on desktop x64 only; the vendored xLua native plugin covers no other pl
 
 ## Licence and provenance
 
-Author: Kaan Altay. This repository is MIT licensed — see LICENSE. xLua (Tencent, MIT) and FairyGUI (MIT) are vendored with provenance in Assets/XLua/VENDORED.md and Assets/FairyGUI/VENDORED.md.
-`Assets/XLua/VENDORED.md` and `Assets/FairyGUI/VENDORED.md`.
+Author: Kaan Altay. This repository is MIT licensed — see LICENSE. xLua (Tencent, MIT) and FairyGUI (MIT) are vendored with provenance in `Assets/XLua/VENDORED.md` and `Assets/FairyGUI/VENDORED.md`.

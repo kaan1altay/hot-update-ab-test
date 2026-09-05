@@ -246,7 +246,7 @@ namespace HotUpdateABTest.Tests.PlayMode
             // and the path used to share a row, which pushed the path to start two thirds of the way
             // across and wrap awkwardly. On its own row it starts at the left and, for a typical user
             // name, fits on one line.
-            string typical = @"C:\Users\kaana\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches";
+            string typical = @"C:\Users\player\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches";
             string longName = @"C:\Users\a-longish-username\AppData\LocalLow\DefaultCompany\hot-update-ab-test\abtest-patches";
 
             Assert.That(Measure(typical, 24, bold: false), Is.LessThan(LogRowTextWidth - 10),

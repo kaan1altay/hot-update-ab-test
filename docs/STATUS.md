@@ -221,10 +221,10 @@ dotnet test dotnet/HotUpdateABTest.sln
 # Everything, including the Lua bridge. Requires the Editor to be closed.
 & "C:\Program Files\Unity\Hub\Editor\6000.0.59f2\Editor\Unity.exe" `
     -batchmode -nographics `
-    -projectPath "C:\SampleProjects\hot-update-ab-test" `
+    -projectPath "C:\<repo>\hot-update-ab-test" `
     -runTests -testPlatform EditMode `
-    -testResults "C:\SampleProjects\hot-update-ab-test\TestResults\editmode.xml" `
-    -logFile "C:\SampleProjects\hot-update-ab-test\TestResults\editmode.log"
+    -testResults "C:\<repo>\hot-update-ab-test\TestResults\editmode.xml" `
+    -logFile "C:\<repo>\hot-update-ab-test\TestResults\editmode.log"
 ```
 
 `TestResults/` is gitignored.

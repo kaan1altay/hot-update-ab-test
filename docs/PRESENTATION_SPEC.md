@@ -6,9 +6,7 @@ because validation accepts exactly this set and no more.
 
 Pinned by `PresentationSpecReaderTests` (21 tests). If anything below changes, that suite changes with it.
 
-> This document says **what must exist**. `docs/PACKAGE_SPEC.md`, written in Slice 5 once you hand over the
-> real component and child names, will say **what does exist** and how the code binds to it. Name things
-> however you like — the names below are only a suggestion.
+> docs/PACKAGE_SPEC.md records what the published package actually contains and how the code binds to it.
 
 ---
 
